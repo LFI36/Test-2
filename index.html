@@ -850,32 +850,17 @@
                     downloadLinkBtn.classList.remove('hidden');
                 }
                 
-                // DETECTION LOCALE POUR CONTOURNER LE BLOCAGE CHROME
+                // Injection systématique de l'iframe (Restauration du lecteur intégré)
+                container.innerHTML = `
+                    <iframe 
+                        src="${url}#view=FitH" 
+                        class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
+                        title="${titles[key]}"
+                    ></iframe>
+                `;
+                
                 if (window.location.protocol === 'file:' && url.startsWith('blob:')) {
-                    container.innerHTML = `
-                        <div class="text-center flex flex-col items-center gap-4 bg-opac-black/50 p-8 rounded-2xl border border-opac-orange/30 shadow-xl">
-                            <i class="fa-solid fa-shield-halved text-5xl text-opac-orange"></i>
-                            <h3 class="text-xl font-bold text-opac-white">Sécurité Chrome Activée</h3>
-                            <p class="text-sm text-opac-white/70 max-w-md">L'application s'exécute depuis votre ordinateur. Chrome bloque l'aperçu interne des fichiers locaux par sécurité.</p>
-                            <div class="flex flex-wrap justify-center gap-3 mt-2">
-                                <a href="${url}" target="_blank" class="bg-opac-orange text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2 shadow-lg">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Chrome
-                                </a>
-                                <a href="${url}" download="${titles[key] || 'document'}.pdf" class="bg-opac-white text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-opac-orange transition-colors flex items-center gap-2 shadow-lg">
-                                    <i class="fa-solid fa-desktop"></i> Acrobat Reader
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Injection via iframe (plus robuste que embed) avec fond blanc pour éviter la transparence
-                    container.innerHTML = `
-                        <iframe 
-                            src="${url}#view=FitH" 
-                            class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
-                            title="${titles[key]}"
-                        ></iframe>
-                    `;
+                    showToast("Mode local : Si l'écran est gris, utilisez le bouton Navigateur en haut à droite.", "error");
                 }
             }
             
@@ -912,33 +897,19 @@
                 downloadLinkBtn.classList.remove('hidden');
             }
             
-            // DETECTION LOCALE POUR CONTOURNER LE BLOCAGE CHROME
+            // Injection systématique de l'iframe (Restauration du lecteur intégré)
+            container.innerHTML = `
+                <iframe 
+                    src="${fileUrl}#view=FitH" 
+                    class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
+                    title="${escapeHTML(file.name)}"
+                ></iframe>
+            `;
+            
+            showToast("Document local chargé. Utilisez le lecteur intégré.", "success");
+            
             if (window.location.protocol === 'file:') {
-                container.innerHTML = `
-                    <div class="text-center flex flex-col items-center gap-4 bg-opac-black/50 p-8 rounded-2xl border border-opac-orange/30 shadow-xl">
-                        <i class="fa-solid fa-shield-halved text-5xl text-opac-orange"></i>
-                        <h3 class="text-xl font-bold text-opac-white">Sécurité Chrome Activée</h3>
-                        <p class="text-sm text-opac-white/70 max-w-md">Vous exécutez l'application depuis votre disque dur local. Chrome interdit l'aperçu de ce PDF à l'intérieur de la page.</p>
-                        <div class="flex flex-wrap justify-center gap-3 mt-2">
-                            <a href="${fileUrl}" target="_blank" class="bg-opac-orange text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2 shadow-lg">
-                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Chrome
-                            </a>
-                            <a href="${fileUrl}" download="${escapeHTML(file.name)}" class="bg-opac-white text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-opac-orange transition-colors flex items-center gap-2 shadow-lg">
-                                <i class="fa-solid fa-desktop"></i> Acrobat Reader
-                            </a>
-                        </div>
-                    </div>
-                `;
-                showToast("Aperçu bloqué. Ouvrez via le bouton central.", "error");
-            } else {
-                container.innerHTML = `
-                    <iframe 
-                        src="${fileUrl}#view=FitH" 
-                        class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
-                        title="${escapeHTML(file.name)}"
-                    ></iframe>
-                `;
-                showToast("Document local chargé instantanément.", "success");
+                showToast("Note: Chrome peut griser le PDF en mode hors-ligne.", "error");
             }
             
             event.target.value = ''; // Réinitialisation de l'input
