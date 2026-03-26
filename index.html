@@ -1,0 +1,2142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GRC - Traitement des demandes (Édition Bleu Prusse & Orange)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuration Tailwind sur-mesure pour votre palette -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'opac-black': '#000000',
+                        'opac-blue': '#14213d',
+                        'opac-orange': '#fca311',
+                        'opac-grey': '#e5e5e5',
+                        'opac-white': '#ffffff'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- PapaParse pour lire et générer le fichier CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <!-- Font Awesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top left, #ffffff, transparent 60%),
+                        radial-gradient(circle at bottom right, #ffffff, transparent 60%),
+                        #e5e5e5;
+            background-attachment: fixed;
+            color: #000000;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Classes Utilitaires (Thème Clair Institutionnel) */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 10px 25px -5px rgba(20, 33, 61, 0.08), 0 8px 10px -6px rgba(20, 33, 61, 0.04);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .glass-panel-dark {
+            background: rgba(20, 33, 61, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(252, 163, 17, 0.3);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            color: #ffffff;
+        }
+
+        .glass-header {
+            background: #14213d;
+            border-bottom: 3px solid #fca311;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            transition: background-color 0.3s ease;
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(252, 163, 17, 0.5);
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+            color: #ffffff;
+        }
+
+        .glass-input-light {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #e5e5e5;
+            color: #000000;
+        }
+
+        .search-dropdown { max-height: 70vh; overflow-y: auto; }
+        
+        /* Custom Scrollbar Orange */
+        ::-webkit-scrollbar { width: 6px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #fca311; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #e5930f; }
+        
+        #tableContent td { vertical-align: top; }
+        [contenteditable="true"]:focus {
+            background-color: #ffffff;
+            outline: 2px solid #fca311;
+            border-radius: 4px;
+            color: #000000;
+        }
+
+        /* ==================================================================
+           🌙 OVERRIDES GLOBALES POUR LE MODE SOMBRE
+           ================================================================== */
+        .dark body { background: #020617; color: #f8fafc; }
+        
+        .dark .glass-panel { background: rgba(30, 41, 59, 0.85); border-color: #334155; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); }
+        .dark .glass-header { background: #020617; border-bottom-color: #fca311; }
+        .dark .glass-panel-dark { background: rgba(2, 6, 23, 0.95); }
+        .dark .glass-input-light { background: rgba(15, 23, 42, 0.8); border-color: #334155; color: #f8fafc; }
+        
+        .dark .bg-opac-white { background-color: #1e293b; }
+        .dark .bg-opac-white\/90 { background-color: rgba(30, 41, 59, 0.9); }
+        .dark .bg-opac-white\/80 { background-color: rgba(30, 41, 59, 0.8); }
+        .dark .bg-opac-white\/60 { background-color: rgba(30, 41, 59, 0.6); }
+        .dark .bg-opac-white\/50 { background-color: rgba(30, 41, 59, 0.5); }
+        .dark .bg-opac-white\/40 { background-color: rgba(30, 41, 59, 0.4); }
+        .dark .bg-opac-white\/10 { background-color: rgba(30, 41, 59, 0.1); }
+        .dark .bg-opac-white\/5 { background-color: rgba(30, 41, 59, 0.05); }
+
+        .dark .text-opac-black { color: #f8fafc; }
+        .dark .text-opac-blue { color: #cbd5e1; }
+        .dark .text-opac-blue\/70 { color: #94a3b8; }
+        .dark .text-opac-blue\/60 { color: #64748b; }
+        .dark .text-opac-blue\/50 { color: #475569; }
+        .dark .text-opac-blue\/40 { color: #334155; }
+        .dark .text-opac-blue\/30 { color: #1e293b; }
+
+        .dark .border-opac-grey { border-color: #334155; }
+        .dark .border-opac-grey\/50 { border-color: rgba(51, 65, 85, 0.5); }
+        .dark .divide-opac-grey > :not([hidden]) ~ :not([hidden]) { border-color: #334155; }
+
+        .dark .bg-opac-grey { background-color: #334155; }
+        .dark .bg-opac-grey\/80 { background-color: rgba(51, 65, 85, 0.8); }
+        .dark .bg-opac-grey\/50 { background-color: rgba(51, 65, 85, 0.5); }
+        .dark .bg-opac-grey\/30 { background-color: rgba(51, 65, 85, 0.3); }
+
+        .dark .bg-opac-blue { background-color: #0f172a; }
+        .dark .bg-opac-blue\/60 { background-color: rgba(15, 23, 42, 0.8); }
+        .dark .border-opac-blue { border-color: #1e293b; }
+        .dark .border-opac-blue\/50 { border-color: rgba(30, 41, 59, 0.5); }
+        .dark .border-opac-blue\/10 { border-color: rgba(30, 41, 59, 0.1); }
+        .dark .border-opac-blue\/5 { border-color: rgba(30, 41, 59, 0.05); }
+        
+        .dark .border-t-opac-blue { border-top-color: #3b82f6; }
+        .dark .border-l-opac-blue { border-left-color: #3b82f6; }
+
+        .dark [contenteditable="true"]:focus {
+            background-color: #1e293b;
+            color: #f8fafc;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(252, 163, 17, 0.4); box-shadow: 0 0 0 0 rgba(252, 163, 17, 0.4); }
+            70% { border-color: rgba(252, 163, 17, 1); box-shadow: 0 0 0 10px rgba(252, 163, 17, 0); }
+            100% { border-color: rgba(252, 163, 17, 0.4); box-shadow: 0 0 0 0 rgba(252, 163, 17, 0); }
+        }
+        .ai-listening-active { animation: pulse-border 2s infinite; }
+        
+        .sidebar-transition { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .overlay-transition { transition: opacity 0.3s ease; }
+
+        @keyframes slideInUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .toast-enter { animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .toast-exit { animation: fadeOut 0.3s ease forwards; }
+
+        /* Animation de couleur pour le logo OPAC36 en masque */
+        .logo-gradient-mask {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(45deg, #fca311, #ff007f, #14213d, #00f2fe, #fca311);
+            background-size: 300% 300%;
+            animation: gradient-shift 4s ease infinite;
+            -webkit-mask: url('https://www.opac36.fr/wp-content/uploads/2022/09/LOGO-OPAC-36.png') no-repeat center;
+            -webkit-mask-size: contain;
+            mask: url('https://www.opac36.fr/wp-content/uploads/2022/09/LOGO-OPAC-36.png') no-repeat center;
+            mask-size: contain;
+        }
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* ==================================================================
+           🚨 OVERRIDES GLOBALES POUR LE MODE ADMINISTRATEUR (ROUGE)
+           ================================================================== */
+        body.admin-mode {
+            background: radial-gradient(circle at top left, #fff1f2, transparent 60%),
+                        radial-gradient(circle at bottom right, #ffe4e6, transparent 60%),
+                        #fecdd3;
+        }
+
+        .dark body.admin-mode {
+            background: #2dd4bf; /* Fallback for dark mode base if needed, but we override below */
+            background: radial-gradient(circle at top left, #4c0519, transparent 60%),
+                        radial-gradient(circle at bottom right, #22020b, transparent 60%),
+                        #000000;
+        }
+
+        /* En-têtes et panneaux profonds */
+        body.admin-mode .glass-header,
+        body.admin-mode .bg-opac-blue {
+            background-color: #4c0519 !important; /* bg-rose-950 */
+            border-bottom-color: #f43f5e !important; /* border-rose-500 */
+        }
+        
+        body.admin-mode .glass-panel-dark {
+            background: rgba(76, 5, 25, 0.95) !important;
+            border-color: rgba(244, 63, 94, 0.5) !important;
+        }
+
+        /* Accents, Bordures et Textes qui étaient oranges/bleus */
+        body.admin-mode .text-opac-orange { color: #f43f5e !important; }
+        body.admin-mode .text-opac-blue { color: #881337 !important; }
+        .dark body.admin-mode .text-opac-blue { color: #fda4af !important; }
+        
+        body.admin-mode .bg-opac-orange { background-color: #e11d48 !important; color: white !important;} /* bg-rose-600 */
+        body.admin-mode .border-opac-orange { border-color: #f43f5e !important; }
+        body.admin-mode .border-opac-orange\/20 { border-color: rgba(244, 63, 94, 0.2) !important; }
+        body.admin-mode .border-opac-orange\/30 { border-color: rgba(244, 63, 94, 0.3) !important; }
+        body.admin-mode .border-opac-orange\/40 { border-color: rgba(244, 63, 94, 0.4) !important; }
+        body.admin-mode .border-opac-orange\/50 { border-color: rgba(244, 63, 94, 0.5) !important; }
+        
+        body.admin-mode .bg-opac-orange\/10 { background-color: rgba(244, 63, 94, 0.1) !important; }
+        body.admin-mode .bg-opac-orange\/20 { background-color: rgba(244, 63, 94, 0.2) !important; }
+
+        body.admin-mode .focus\:ring-opac-orange:focus { --tw-ring-color: #f43f5e !important; }
+        body.admin-mode .focus\:border-opac-orange:focus { border-color: #f43f5e !important; }
+
+        body.admin-mode [contenteditable="true"]:focus {
+            outline: 2px solid #e11d48 !important;
+        }
+
+        /* Scrollbar en mode Admin */
+        body.admin-mode ::-webkit-scrollbar-thumb { background: #e11d48 !important; }
+        body.admin-mode ::-webkit-scrollbar-thumb:hover { background: #be123c !important; }
+
+        /* Ombre du bouton OCR en mode admin */
+        body.admin-mode .shadow-\[0_0_8px_rgba\(252\,163\,17\,0\.5\)\] {
+            box-shadow: 0 0 8px rgba(244, 63, 94, 0.5) !important;
+        }
+
+        /* Classes utilitaires de visibilité conditionnelle Admin */
+        body:not(.admin-mode) .admin-only-flex { display: none !important; }
+        body.admin-mode .admin-only-flex { display: flex !important; }
+
+        /* Styles spécifiques au lecteur PDF */
+        embed.pdf-viewer {
+            border-radius: 0.75rem;
+            background-color: #525659;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col overflow-x-hidden relative">
+
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Overlay pour le nettoyage IA -->
+    <div id="aiBatchOverlay" class="fixed inset-0 bg-opac-blue/80 backdrop-blur-md z-[100] hidden flex-col items-center justify-center gap-6 p-4">
+        <div class="glass-panel p-8 rounded-2xl w-full max-w-md flex flex-col items-center gap-4 text-center">
+            <div class="flex items-center justify-center mb-2">
+                <div class="logo-gradient-mask drop-shadow-lg"></div>
+            </div>
+            <div>
+                <h3 class="text-xl font-extrabold text-opac-blue">Intelligence Artificielle</h3>
+                <p id="aiBatchProgressText" class="text-sm font-semibold text-opac-blue/70 mt-1">Analyse en cours...</p>
+            </div>
+            <div class="w-full h-3 bg-opac-grey rounded-full overflow-hidden mt-2 shadow-inner">
+                <div id="aiBatchProgressBar" class="h-full bg-gradient-to-r from-purple-500 to-indigo-600 transition-all duration-300 w-0"></div>
+            </div>
+            <p class="text-xs text-opac-blue/50 italic mt-2 leading-relaxed">Gemini analyse les données. Veuillez ne pas fermer cette page.</p>
+        </div>
+    </div>
+
+    <!-- Overlay & Sidebar (Bleu Prusse) -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-opac-black/50 backdrop-blur-sm z-40 hidden opacity-0 overlay-transition"></div>
+    
+    <div id="appSidebar" class="fixed inset-y-0 left-0 w-[380px] glass-panel-dark z-50 transform -translate-x-full sidebar-transition flex flex-col">
+        <div class="p-5 border-b border-opac-orange/30 flex justify-between items-center bg-opac-black/20 shrink-0">
+            <h2 class="font-bold text-lg tracking-wide flex items-center gap-3 text-opac-white">
+                <i class="fa-solid fa-layer-group text-opac-orange"></i> Navigation
+            </h2>
+            <button onclick="toggleSidebar()" class="text-opac-grey hover:text-opac-orange p-1 rounded-md hover:bg-opac-white/10 transition-colors">
+                <i class="fa-solid fa-xmark text-xl w-6 h-6 flex items-center justify-center"></i>
+            </button>
+        </div>
+        
+        <div class="flex-grow overflow-y-auto p-4 flex flex-col gap-3">
+            
+            <!-- SECTION : CARNETS & MANUELS (Liens directs vers le Lecteur PDF Natif) -->
+            <div class="mb-2 bg-opac-black/20 rounded-xl p-3 border border-opac-orange/20 shadow-md">
+                <h3 class="text-xs font-bold text-opac-orange uppercase tracking-wider flex items-center gap-2 mb-3 border-b border-opac-orange/10 pb-2">
+                    <i class="fa-solid fa-book-open"></i> Carnets & Manuels
+                </h3>
+                
+                <div class="flex flex-col gap-1">
+                    <!-- Carnet Chauffage -->
+                    <div class="flex items-center justify-between w-full group py-1.5 px-2 hover:bg-opac-white/5 rounded-lg transition-colors">
+                        <button onclick="openSystemDoc('heating')" class="flex items-center gap-3 text-sm text-opac-white hover:text-opac-orange transition-colors truncate text-left w-full">
+                            <i class="fa-solid fa-fire-burner text-opac-orange/80 w-4 text-center"></i>
+                            <span class="font-bold tracking-wide">Carnet Chauffage</span>
+                        </button>
+                        <button onclick="editSystemDoc('heating')" class="admin-only-flex text-[10px] text-opac-grey hover:text-opac-orange px-2 py-1.5 rounded bg-opac-white/10" title="Modifier l'URL du document">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </div>
+
+                    <!-- Secteurs -->
+                    <div class="flex items-center justify-between w-full group py-1.5 px-2 hover:bg-opac-white/5 rounded-lg transition-colors">
+                        <button onclick="openSystemDoc('secteurs')" class="flex items-center gap-3 text-sm text-opac-white hover:text-opac-orange transition-colors truncate text-left w-full">
+                            <i class="fa-solid fa-map-location-dot text-opac-orange/80 w-4 text-center"></i>
+                            <span class="font-bold tracking-wide">Chargés de secteur</span>
+                        </button>
+                        <button onclick="editSystemDoc('secteurs')" class="admin-only-flex text-[10px] text-opac-grey hover:text-opac-orange px-2 py-1.5 rounded bg-opac-white/10" title="Modifier l'URL du document">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </div>
+
+                    <!-- Ascenseurs -->
+                    <div class="flex items-center justify-between w-full group py-1.5 px-2 hover:bg-opac-white/5 rounded-lg transition-colors">
+                        <button onclick="openSystemDoc('ascenseurs')" class="flex items-center gap-3 text-sm text-opac-white hover:text-opac-orange transition-colors truncate text-left w-full">
+                            <i class="fa-solid fa-elevator text-opac-orange/80 w-4 text-center"></i>
+                            <span class="font-bold tracking-wide">Codes Ascenseurs</span>
+                        </button>
+                        <button onclick="editSystemDoc('ascenseurs')" class="admin-only-flex text-[10px] text-opac-grey hover:text-opac-orange px-2 py-1.5 rounded bg-opac-white/10" title="Modifier l'URL du document">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION : BOUTON BASE DE DONNEES -->
+            <button onclick="handleDatabaseAccess(); toggleSidebar();" class="w-full text-left bg-opac-white/5 hover:bg-opac-orange/10 text-opac-white py-3 px-4 rounded-xl transition-colors flex items-center gap-3 border border-opac-orange/20 group shadow-sm mt-2">
+                <div class="bg-opac-orange/20 text-opac-orange p-2 rounded-lg group-hover:bg-opac-orange group-hover:text-opac-black transition-colors relative">
+                    <i class="fa-solid fa-table-cells w-4 text-center"></i>
+                    <i id="dbLockIcon" class="fa-solid fa-lock absolute -bottom-1 -right-1 text-[10px] bg-opac-blue text-opac-orange rounded-full p-0.5"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-semibold text-sm group-hover:text-opac-orange transition-colors">Éditeur de base (Pannes)</span>
+                    <span class="text-xs text-opac-grey/70">Mettre à jour le tableau</span>
+                </div>
+            </button>
+
+            <!-- SECTION : RACCOURCIS PERSONNALISÉS -->
+            <div class="mt-4 mb-2 bg-opac-black/20 rounded-xl p-3 border border-opac-orange/20 shadow-md relative">
+                <div class="flex justify-between items-center mb-4 border-b border-opac-orange/10 pb-2">
+                    <h3 class="text-xs font-bold text-opac-orange uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-link"></i> Raccourcis externes
+                    </h3>
+                    <button id="addShortcutBtn" onclick="openShortcutModal()" class="hidden text-opac-white hover:text-opac-orange bg-opac-white/10 hover:bg-opac-orange/20 w-6 h-6 rounded flex items-center justify-center transition-colors shadow-sm" title="Ajouter un lien">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                    </button>
+                </div>
+                
+                <ul id="shortcutList" class="flex flex-col gap-2 relative z-10 mt-2">
+                    <li class="text-xs text-opac-grey/50 italic text-center py-2">Aucun raccourci configuré</li>
+                </ul>
+            </div> 
+            
+            <div class="flex-grow"></div>
+
+            <!-- Bouton Paramètres IA & Admin -->
+            <div class="border-t border-opac-orange/20 pt-4 mt-2 shrink-0">
+                <button onclick="openSettings(); toggleSidebar();" class="w-full text-left hover:bg-opac-white/5 text-opac-grey hover:text-opac-white py-3 px-4 rounded-xl transition-colors flex items-center gap-3 group mb-2">
+                    <div class="bg-opac-black/30 border border-opac-orange/10 text-opac-orange p-2 rounded-lg group-hover:bg-opac-orange/20 transition-colors">
+                        <i class="fa-solid fa-gear w-4 text-center"></i>
+                    </div>
+                    <span class="font-medium text-sm">Paramètres IA</span>
+                </button>
+
+                <button id="adminToggleBtn" onclick="toggleAdminMode()" class="w-full text-left bg-opac-blue/50 hover:bg-rose-500/20 text-opac-white py-3 px-4 rounded-xl transition-colors flex items-center gap-3 group border border-transparent">
+                    <div id="adminToggleIconBg" class="bg-opac-black/30 border border-opac-grey/30 text-opac-grey p-2 rounded-lg transition-colors">
+                        <i id="adminToggleIcon" class="fa-solid fa-lock w-4 text-center"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="font-bold text-sm" id="adminToggleText">Mode Administrateur</span>
+                        <span class="text-[10px] text-opac-grey/50" id="adminToggleSubtext">Désactivé</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fenêtre Modale des Paramètres -->
+    <div id="settingsModal" class="fixed inset-0 bg-opac-blue/60 z-[60] hidden flex items-center justify-center backdrop-blur-md opacity-0 overlay-transition p-4">
+        <div class="glass-panel rounded-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300 border-t-4 border-t-opac-blue" id="settingsModalContent">
+            <div class="bg-opac-white border-b border-opac-grey px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-opac-blue flex items-center gap-2">
+                    <i class="fa-solid fa-microchip text-opac-orange"></i> Paramètres Système
+                </h2>
+                <button onclick="closeSettings()" class="text-opac-blue/50 hover:text-opac-orange"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 flex flex-col gap-4 bg-opac-white/50">
+                <div class="bg-opac-orange/10 border border-opac-orange/30 text-opac-blue text-xs p-3 rounded-xl flex gap-2 items-start shadow-sm">
+                    <i class="fa-solid fa-circle-info mt-0.5 text-opac-orange"></i>
+                    <p>Renseignez vos clés API si vous exécutez l'application en externe. <strong>Laissez vide</strong> pour utiliser l'injection sécurisée par défaut.</p>
+                </div>
+                
+                <div>
+                    <label for="geminiApiKey" class="block text-sm font-bold text-opac-blue mb-1">Clé API Gemini (Google)</label>
+                    <input type="password" id="geminiApiKey" placeholder="AIzaSy..." class="w-full px-4 py-2 glass-input-light rounded-xl focus:ring-2 focus:ring-opac-orange focus:border-opac-orange transition-all font-mono text-sm">
+                </div>
+            </div>
+            <div class="bg-opac-grey/30 border-t border-opac-grey px-6 py-4 flex justify-end gap-3">
+                <button onclick="closeSettings()" class="px-4 py-2 text-sm font-bold text-opac-blue/70 hover:text-opac-blue hover:bg-opac-grey/50 rounded-lg transition-colors">Annuler</button>
+                <button onclick="saveSettings()" class="px-5 py-2 text-sm font-bold text-opac-black bg-opac-orange hover:bg-opacity-90 rounded-lg shadow-md transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fenêtre Modale de Sécurité (Mot de passe) -->
+    <div id="passwordModal" class="fixed inset-0 bg-opac-blue/60 z-[70] hidden flex items-center justify-center backdrop-blur-md opacity-0 overlay-transition p-4">
+        <div class="glass-panel rounded-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300 border-t-4 border-t-opac-blue" id="passwordModalContent">
+            <div class="bg-opac-white border-b border-opac-grey px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-opac-blue flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-opac-orange"></i> Authentification
+                </h2>
+                <button onclick="closePasswordModal()" class="text-opac-blue/50 hover:text-opac-orange"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 flex flex-col gap-4 bg-opac-white/50">
+                <p class="text-sm text-opac-blue font-semibold text-center mb-2">Saisissez le mot de passe administrateur pour déverrouiller l'édition.</p>
+                <div>
+                    <input type="password" id="dbPasswordInput" onkeypress="if(event.key === 'Enter') verifyPassword()" placeholder="Mot de passe..." class="w-full px-4 py-3 glass-input-light rounded-xl focus:ring-2 focus:ring-opac-orange focus:border-opac-orange transition-all text-sm text-center tracking-widest font-bold">
+                </div>
+            </div>
+            <div class="bg-opac-grey/30 border-t border-opac-grey px-6 py-4 flex justify-end gap-3">
+                <button onclick="closePasswordModal()" class="px-4 py-2 text-sm font-bold text-opac-blue/70 hover:text-opac-blue hover:bg-opac-grey/50 rounded-lg transition-colors">Annuler</button>
+                <button onclick="verifyPassword()" class="px-6 py-2 text-sm font-bold text-opac-black bg-opac-orange hover:bg-opacity-90 rounded-lg shadow-md transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-unlock"></i> Déverrouiller
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fenêtre Modale Ajout de Raccourci -->
+    <div id="shortcutModal" class="fixed inset-0 bg-opac-blue/60 z-[80] hidden flex items-center justify-center backdrop-blur-md opacity-0 overlay-transition p-4">
+        <div class="glass-panel rounded-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform duration-300 border-t-4 border-t-opac-orange" id="shortcutModalContent">
+            <div class="bg-opac-white border-b border-opac-grey px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-opac-blue flex items-center gap-2">
+                    <i class="fa-solid fa-link text-opac-orange"></i> Paramétrage du Lien
+                </h2>
+                <button onclick="closeShortcutModal()" class="text-opac-blue/50 hover:text-opac-orange"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 flex flex-col gap-4 bg-opac-white/50">
+                <input type="hidden" id="shortcutIdInput">
+                <div>
+                    <label class="block text-sm font-bold text-opac-blue mb-1">Nom du document / site</label>
+                    <input type="text" id="shortcutNameInput" placeholder="Ex: Portail OPAC..." class="w-full px-4 py-2 glass-input-light rounded-xl focus:ring-2 focus:ring-opac-orange focus:border-opac-orange transition-all text-sm font-medium">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-opac-blue mb-1">URL (Chemin du fichier PDF ou lien web)</label>
+                    <div class="flex gap-2">
+                        <input type="url" id="shortcutUrlInput" placeholder="fichiers/nom_du_fichier.pdf" class="w-full px-4 py-2 glass-input-light rounded-xl focus:ring-2 focus:ring-opac-orange focus:border-opac-orange transition-all text-sm font-medium">
+                        <label class="cursor-pointer bg-opac-blue hover:bg-opac-orange text-white hover:text-opac-black px-4 py-2 rounded-xl transition-colors flex items-center justify-center shrink-0 shadow-md" title="Charger un fichier depuis le PC pour tester">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <input type="file" id="shortcutFileInput" accept="application/pdf" class="hidden" onchange="handleAdminFileLoad(event)">
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-opac-blue/60 mt-1 italic"><span class="font-bold text-opac-orange">Nouveau :</span> Renseignez le chemin serveur (ex: fichiers/carnet.pdf) OU utilisez l'icône dossier pour charger et tester un fichier de votre PC immédiatement.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-opac-blue mb-1">URL 2 (Optionnel - Ouverture simultanée)</label>
+                    <input type="url" id="shortcutUrl2Input" placeholder="https://..." class="w-full px-4 py-2 glass-input-light rounded-xl focus:ring-2 focus:ring-opac-orange focus:border-opac-orange transition-all text-sm font-medium">
+                </div>
+            </div>
+            <div class="bg-opac-grey/30 border-t border-opac-grey px-6 py-4 flex justify-end gap-3">
+                <button onclick="closeShortcutModal()" class="px-4 py-2 text-sm font-bold text-opac-blue/70 hover:text-opac-blue hover:bg-opac-grey/50 rounded-lg transition-colors">Annuler</button>
+                <button onclick="saveShortcut()" class="px-5 py-2 text-sm font-bold text-opac-black bg-opac-orange hover:bg-opacity-90 rounded-lg shadow-md transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales de Formulaires Automatiques (Conservées) -->
+    <div id="formModalDemandeDossier" class="fixed inset-0 bg-opac-blue/60 z-[80] hidden flex items-center justify-center backdrop-blur-md opacity-0 overlay-transition p-4">
+        <!-- Contenu identique (allégé visuellement ici pour la lisibilité de la réponse) -->
+        <div class="glass-panel rounded-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300 border-t-4 border-t-opac-orange" id="formModalDemandeDossierContent">
+            <div class="bg-opac-white border-b border-opac-grey px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-opac-blue flex items-center gap-2"><i class="fa-solid fa-envelope-open-text text-opac-orange"></i> Demande de dossier par mail</h2>
+                <button onclick="closeFormModal('formModalDemandeDossier')" class="text-opac-blue/50 hover:text-opac-orange"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 flex flex-col gap-4 bg-opac-white/50 max-h-[70vh] overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2"><label class="block text-sm font-bold text-opac-blue mb-1">Nom du demandeur</label><input type="text" id="form1-nom" class="w-full px-4 py-2 glass-input-light rounded-xl text-sm font-medium"></div>
+                    <div><label class="block text-sm font-bold text-opac-blue mb-1">Téléphone</label><input type="tel" id="form1-tel" class="w-full px-4 py-2 glass-input-light rounded-xl text-sm font-medium"></div>
+                    <div><label class="block text-sm font-bold text-opac-blue mb-1">E-mail</label><input type="email" id="form1-mail" class="w-full px-4 py-2 glass-input-light rounded-xl text-sm font-medium"></div>
+                    <div><label class="block text-sm font-bold text-opac-blue mb-1">Type de logement</label><input type="text" id="form1-type" class="w-full px-4 py-2 glass-input-light rounded-xl text-sm font-medium"></div>
+                    <div><label class="block text-sm font-bold text-opac-blue mb-1">Commune</label><input type="text" id="form1-commune" class="w-full px-4 py-2 glass-input-light rounded-xl text-sm font-medium"></div>
+                </div>
+            </div>
+            <div class="bg-opac-grey/30 border-t border-opac-grey px-6 py-4 flex justify-end gap-3 flex-wrap">
+                <button onclick="generateEmailDemandeDossier()" class="px-5 py-2 text-sm font-bold text-white bg-opac-blue hover:bg-opacity-90 rounded-lg flex items-center gap-2"><i class="fa-brands fa-microsoft"></i> Générer via Outlook Web</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Résumé IA -->
+    <div id="summaryModal" class="fixed inset-0 bg-opac-blue/60 z-[80] hidden flex items-center justify-center backdrop-blur-md opacity-0 overlay-transition p-4">
+        <div class="glass-panel rounded-2xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300 border-t-4 border-t-opac-orange" id="summaryModalContent">
+            <div class="bg-opac-white border-b border-opac-grey px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-opac-blue flex items-center gap-2"><i class="fa-solid fa-robot text-opac-orange"></i> Résumé IA Généré</h2>
+                <button onclick="closeSummaryModal()" class="text-opac-blue/50 hover:text-opac-orange"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 flex flex-col gap-4 bg-opac-white/50">
+                <textarea id="aiSummaryTextarea" class="w-full h-24 px-4 py-3 glass-input-light rounded-xl text-sm font-medium resize-none" readonly></textarea>
+            </div>
+            <div class="bg-opac-grey/30 border-t border-opac-grey px-6 py-4 flex justify-end gap-3">
+                <button onclick="closeSummaryModal()" class="px-4 py-2 text-sm font-bold text-opac-blue/70">Fermer</button>
+                <button onclick="copySummaryFromModal()" class="px-6 py-2 text-sm font-bold text-opac-black bg-opac-orange rounded-lg">Copier</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Principal -->
+    <header class="glass-header text-opac-white shadow-xl z-30 relative flex items-center px-4">
+        <button onclick="toggleSidebar()" class="shrink-0 text-opac-orange hover:text-opac-white hover:bg-opac-orange/20 p-2.5 rounded-xl transition-colors focus:outline-none flex items-center justify-center shadow-sm border border-transparent hover:border-opac-orange/40 mr-2 md:mr-4">
+            <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+        <div class="max-w-[1400px] w-full mx-auto py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <button onclick="resetToHome()" class="hidden sm:block hover:scale-105 transition-transform focus:outline-none opacity-100" title="Retour à l'accueil">
+                    <img src="https://www.opac36.fr/wp-content/uploads/2022/09/LOGO-OPAC-36.png" alt="Logo OPAC 36" class="h-8 w-auto object-contain cursor-pointer brightness-0 invert">
+                </button>
+                <h1 onclick="resetToHome()" class="text-xl sm:text-2xl font-extrabold tracking-wide cursor-pointer text-opac-white hover:text-opac-orange transition-colors" title="Retour à l'accueil">OPAC36 - GRC</h1>
+
+                <button onclick="toggleDarkMode()" class="ml-auto md:ml-4 text-opac-orange hover:text-opac-white hover:bg-opac-orange/20 p-2 rounded-xl transition-colors focus:outline-none shadow-sm" title="Basculer le mode d'affichage">
+                    <i id="darkModeIcon" class="fa-solid fa-moon"></i>
+                </button>
+            </div>
+            
+            <!-- Search Bar -->
+            <div class="w-full md:max-w-3xl relative group" id="searchContainer">
+                <div class="relative text-opac-white/60 focus-within:text-opac-orange">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                    <input type="text" id="searchInput" class="block w-full pl-10 pr-28 py-2.5 rounded-xl border border-opac-orange/50 bg-opac-white/10 backdrop-blur-md text-opac-white placeholder:text-opac-white/50 focus:bg-opac-white/20 focus:border-opac-orange focus:ring-2 focus:ring-opac-orange/40 transition-all shadow-inner peer" placeholder="Rechercher un élément, un mot-clé, une panne..." oninput="handleSearch()" autocomplete="off">
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 gap-1 z-10">
+                        <button id="voiceSearchBtn" onclick="toggleVoiceSearch()" class="p-1.5 rounded-lg hover:bg-opac-orange/20 text-opac-white/60 hover:text-opac-orange peer-focus:text-opac-orange">
+                            <i id="voiceIcon" class="fa-solid fa-microphone"></i>
+                        </button>
+                        <button id="aiListenBtn" onclick="toggleAIListen()" class="p-1.5 rounded-lg hover:bg-opac-orange/30 text-opac-orange hover:text-opac-white peer-focus:text-opac-white">
+                            <i id="aiListenIcon" class="fa-solid fa-brain"></i>
+                        </button>
+                        <button id="clearSearchBtn" onclick="clearSearch()" class="p-1.5 rounded-lg hover:bg-opac-white/10 text-opac-white/60 hover:text-rose-400 hidden">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Dropdown Résultats -->
+                <div id="searchDropdown" class="hidden absolute top-full left-0 right-0 mt-2 glass-panel rounded-xl search-dropdown z-50 overflow-hidden border-opac-blue/20"></div>
+            </div>
+            <div class="hidden md:block w-10"></div>
+        </div>
+    </header>
+
+    <!-- UI Flottante IA -->
+    <div id="aiFloatingPanel" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 glass-panel rounded-2xl border-2 border-opac-orange w-11/12 md:w-2/3 lg:w-1/2 z-[45] hidden flex-col overflow-hidden transition-all duration-300 shadow-xl">
+        <div class="bg-opac-blue px-4 py-3 border-b border-opac-orange/50 flex justify-between items-center">
+            <div class="flex items-center gap-2 text-opac-white font-bold text-sm">
+                <i class="fa-solid fa-satellite-dish animate-pulse text-opac-orange"></i> Écoute en cours... 
+            </div>
+            <button onclick="stopAndAnalyzeAI()" class="bg-opac-orange hover:bg-opacity-90 text-opac-black text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm flex items-center gap-2 transition-all">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Forcer l'analyse
+            </button>
+        </div>
+        <div class="p-5 bg-opac-white/80">
+            <p id="aiLiveTranscript" class="text-sm text-opac-blue italic leading-relaxed min-h-[60px] max-h-[120px] overflow-y-auto font-medium"></p>
+        </div>
+        <div id="aiProcessingOverlay" class="absolute inset-0 bg-opac-white/90 backdrop-blur-md hidden flex-col items-center justify-center gap-3 z-10">
+            <i class="fa-solid fa-circle-notch fa-spin text-opac-orange text-4xl"></i>
+            <p class="text-sm font-bold text-opac-blue text-center px-4">Gemini analyse la conversation...</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 md:p-6 max-w-[1400px] mx-auto w-full flex flex-col gap-6 relative z-10">
+        
+        <!-- VUE 1 : TABLEAU DE BORD (inchangée) -->
+        <div id="mainDashboard" class="flex flex-col md:flex-row gap-6 w-full items-start">
+            <div class="w-full md:w-2/3 flex flex-col gap-6">
+                
+                <div id="emptyState" class="glass-panel rounded-2xl p-12 text-center h-full flex flex-col justify-center items-center">
+                    <div class="w-20 h-20 bg-opac-grey/50 rounded-full flex items-center justify-center mb-5 border border-opac-white shadow-inner backdrop-blur-sm">
+                        <i class="fa-solid fa-magnifying-glass text-3xl text-opac-blue"></i>
+                    </div>
+                    <h2 class="text-xl font-extrabold text-opac-blue">Aucune demande sélectionnée</h2>
+                    <p class="text-opac-blue/70 mt-2 font-semibold">Saisissez un problème ou un prestataire dans la barre de recherche.</p>
+                </div>
+
+                <div id="detailView" class="hidden flex flex-col gap-6">
+                    <!-- Fiche principale -->
+                    <div class="glass-panel rounded-2xl overflow-hidden shadow-lg">
+                        <div class="bg-opac-blue px-6 py-4 flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-list text-opac-orange text-xl"></i>
+                            <h2 class="text-lg font-extrabold text-white uppercase" id="data-main-title">Détail</h2>
+                            <span id="data-id" class="ml-auto text-[10px] font-bold text-opac-blue bg-white px-3 py-1.5 rounded-lg shadow-inner tracking-widest uppercase"></span>
+                        </div>
+                        
+                        <div class="flex flex-col lg:flex-row p-6 gap-6 bg-opac-white/60">
+                            <div class="flex-grow flex flex-col gap-6">
+                                <div>
+                                    <h3 class="text-xl font-extrabold text-opac-black" id="data-elements">-</h3>
+                                    <p class="text-opac-blue/60 font-semibold italic mt-1 text-sm hidden" id="data-descriptif">-</p>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="bg-opac-white rounded-xl p-5 border-l-4 border-l-opac-orange shadow-sm border border-opac-grey/50">
+                                        <div class="flex flex-col gap-3 text-sm">
+                                            <div class="flex justify-between items-center border-b border-opac-grey pb-2">
+                                                <span class="text-opac-blue/60 font-bold text-xs uppercase tracking-wider">Demande</span>
+                                                <span class="font-bold text-opac-black text-right" id="data-demande">-</span>
+                                            </div>
+                                            <div class="flex justify-between items-center border-b border-opac-grey pb-2">
+                                                <span class="text-opac-blue/60 font-bold text-xs uppercase tracking-wider">Type</span>
+                                                <span class="font-bold text-opac-black bg-opac-grey px-2.5 py-1 rounded-md text-right border border-opac-blue/5" id="data-type">-</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-opac-blue/60 font-bold text-xs uppercase tracking-wider">Nature</span>
+                                                <span class="font-extrabold text-opac-blue text-right" id="data-nature">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-opac-white rounded-xl p-5 border-l-4 border-l-opac-blue shadow-sm border border-opac-grey/50">
+                                        <div class="flex flex-col gap-3 text-sm">
+                                            <div class="flex justify-between items-center border-b border-opac-grey pb-2">
+                                                <span class="text-opac-blue/60 font-bold text-xs uppercase tracking-wider">Destinataire</span>
+                                                <span class="font-extrabold text-opac-blue text-right" id="data-destinataire">-</span>
+                                            </div>
+                                            <div class="flex justify-between items-center">
+                                                <span class="text-opac-blue/60 font-bold text-xs uppercase tracking-wider">Contact</span>
+                                                <span class="font-extrabold text-opac-black text-right" id="data-contact">-</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="w-full lg:w-48 shrink-0 flex flex-col gap-2">
+                                <span class="text-opac-blue/60 font-bold text-xs uppercase tracking-wider text-center">Illustration</span>
+                                <div class="bg-opac-grey/30 rounded-xl border border-opac-grey aspect-square flex items-center justify-center overflow-hidden shadow-inner relative group">
+                                    <i class="fa-regular fa-image text-4xl text-opac-blue/30 absolute" id="data-image-icon"></i>
+                                    <img id="data-image" src="" class="hidden object-contain w-full h-full relative z-10 p-2 bg-opac-white">
+                                    <a id="data-image-link" href="#" target="_blank" class="hidden absolute inset-0 z-20"></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-panel rounded-2xl overflow-hidden flex flex-col shadow-md">
+                            <div class="bg-opac-blue px-5 py-4 flex items-center gap-2">
+                                <i class="fa-solid fa-headset text-opac-orange text-lg"></i>
+                                <h3 class="font-extrabold text-white">Scénario GRC</h3>
+                            </div>
+                            <div class="p-6 text-sm text-opac-black flex-grow leading-relaxed font-medium bg-opac-white/40" id="data-scenario-grc">-</div>
+                        </div>
+
+                        <div class="glass-panel rounded-2xl overflow-hidden flex flex-col shadow-md">
+                            <div class="bg-opac-orange px-5 py-4 flex items-center gap-2">
+                                <i class="fa-solid fa-person-shelter text-opac-black text-lg"></i>
+                                <h3 class="font-extrabold text-opac-black">Scénario Gardien</h3>
+                            </div>
+                            <div class="p-6 text-sm text-opac-black flex-grow leading-relaxed font-medium bg-opac-white/40" id="data-scenario-gardien">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colonne de droite -->
+            <div class="w-full md:w-1/3 flex flex-col gap-6 sticky top-6 z-20">
+                <div id="suiviPanel" class="glass-panel rounded-2xl overflow-hidden opacity-50 pointer-events-none transition-opacity duration-300 shadow-md">
+                    <div class="bg-opac-blue px-5 py-4 flex items-center gap-3">
+                        <i class="fa-solid fa-shoe-prints text-opac-orange text-lg"></i>
+                        <h3 class="font-extrabold text-white">Suivi évènementiel</h3>
+                    </div>
+                    <div class="p-6 flex flex-col gap-5 relative bg-opac-white/40" id="suiviContent"></div>
+                </div>
+
+                <div class="glass-panel rounded-2xl overflow-hidden shadow-md">
+                    <div class="bg-opac-blue px-5 py-4 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-white/70"></i>
+                        <h3 class="font-extrabold text-white text-sm">Dernières recherches</h3>
+                    </div>
+                    <ul id="historyList" class="divide-y divide-opac-grey text-sm max-h-48 overflow-y-auto bg-opac-white/40">
+                        <li class="p-5 text-opac-blue/50 font-medium italic text-center">Aucun historique.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- VUE 2 : NOUVEAU PORTAIL LECTEUR PDF NATIF (Direct Link Integration) -->
+        <div id="pdfReaderView" class="hidden w-full glass-panel-dark rounded-2xl shadow-2xl flex flex-col h-[85vh] overflow-hidden relative z-10 border border-opac-orange/50">
+            <div class="bg-opac-black/60 text-opac-white px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-opac-orange/50 shrink-0 backdrop-blur-md">
+                <div class="flex items-center gap-3">
+                    <div class="bg-opac-orange text-opac-black p-2 rounded-lg shadow-md">
+                        <i class="fa-solid fa-file-pdf text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 id="pdfViewerTitle" class="text-xl font-extrabold tracking-wide text-opac-white">Visionneuse PDF</h2>
+                        <p class="text-xs text-opac-white/60 font-medium">Recherche visuelle (Ctrl+F) et mise en page préservée</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 flex-wrap justify-end">
+                    <!-- NOUVEAU BOUTON : Forcer l'ouverture externe -->
+                    <a id="externalPdfLink" href="#" target="_blank" class="hidden bg-opac-white/10 hover:bg-opac-orange hover:text-opac-black text-opac-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-opac-white/20 flex items-center gap-2" title="Ouvrir le lien dans un nouvel onglet Chrome">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Navigateur
+                    </a>
+                    <!-- NOUVEAU BOUTON : Télécharger / Ouvrir sur PC -->
+                    <a id="downloadPdfLink" href="#" download="document.pdf" class="hidden bg-opac-white/10 hover:bg-opac-orange hover:text-opac-black text-opac-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-opac-white/20 flex items-center gap-2" title="Télécharger pour ouvrir avec Acrobat Reader">
+                        <i class="fa-solid fa-desktop"></i> Application PC
+                    </a>
+                    <!-- Option secondaire pour charger un fichier manuel si l'URL est cassée -->
+                    <label class="cursor-pointer bg-opac-white/10 hover:bg-opac-white/20 text-opac-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-opac-white/20 flex items-center gap-2" title="Ouvrir un PDF depuis votre ordinateur si le lien échoue">
+                        <i class="fa-solid fa-folder-open"></i> Dépannage (Fichier local)
+                        <input type="file" accept="application/pdf" class="hidden" onchange="loadVisualPdfFallback(event)">
+                    </label>
+                    <button onclick="resetToHome()" class="bg-rose-500/80 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-xmark"></i> Fermer
+                    </button>
+                </div>
+            </div>
+            
+            <div id="pdfEmbedContainer" class="flex-grow bg-opac-grey/10 flex items-center justify-center p-2 md:p-4 relative">
+                <!-- Le tag embed sera injecté ici par JS -->
+            </div>
+        </div>
+
+        <!-- VUE 3 : ÉDITEUR DE TABLEAU (Bleu Prusse) -->
+        <div id="tableView" class="hidden w-full glass-panel-dark rounded-2xl shadow-2xl flex flex-col h-[80vh] overflow-hidden relative z-10 border border-opac-orange">
+            <div class="bg-opac-black/40 text-opac-white px-6 py-5 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-opac-orange/30 shrink-0 backdrop-blur-md">
+                <div>
+                    <h2 class="text-xl font-extrabold flex items-center gap-3"><i class="fa-solid fa-database text-opac-orange"></i> Gestion des Scénarios</h2>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    
+                    <!-- Panneau Recherche & Remplacement (Façon Excel) -->
+                    <div class="flex flex-col gap-2 bg-opac-white/10 p-2 rounded-xl border border-opac-orange/30 shadow-inner mr-2 w-full lg:w-auto">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="flex items-center gap-2 px-2">
+                                <i class="fa-solid fa-magnifying-glass text-opac-orange/70 text-xs"></i>
+                                <input type="text" id="findInput" oninput="updateFindMatches(true);" placeholder="Rechercher..." class="w-32 md:w-40 bg-transparent text-opac-white text-sm focus:outline-none placeholder:text-opac-white/50">
+                                <span id="findCount" class="text-xs text-opac-white/50 font-mono w-8 text-center">0/0</span>
+                            </div>
+                            <div class="flex items-center border-l border-opac-orange/30 pl-1 pr-2">
+                                <button onclick="findPrev()" class="p-1.5 text-opac-white hover:text-opac-orange"><i class="fa-solid fa-chevron-up text-xs"></i></button>
+                                <button onclick="findNext()" class="p-1.5 text-opac-white hover:text-opac-orange"><i class="fa-solid fa-chevron-down text-xs"></i></button>
+                            </div>
+                            <label class="flex items-center gap-1 text-xs text-opac-white/70 cursor-pointer border-l border-opac-orange/30 pl-2 pr-1">
+                                <input type="checkbox" id="wholeWordCheck" onchange="updateFindMatches(true)" class="accent-opac-orange"> Mot entier
+                            </label>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 border-t border-opac-orange/20 pt-2">
+                            <div class="flex items-center gap-2 px-2">
+                                <i class="fa-solid fa-pen-to-square text-opac-orange/70 text-xs"></i>
+                                <input type="text" id="replaceInput" placeholder="Remplacer par..." class="w-32 md:w-40 bg-transparent text-opac-white text-sm focus:outline-none placeholder:text-opac-white/50 border-b border-opac-white/30">
+                            </div>
+                            <div class="flex items-center gap-1 border-l border-opac-orange/30 pl-2">
+                                <button onclick="replaceCurrent()" class="px-2 py-1 text-xs font-bold bg-opac-white/10 hover:bg-opac-orange/20 rounded-lg text-opac-white border border-opac-orange/30">Remplacer</button>
+                                <button onclick="replaceAll()" class="px-2 py-1 text-xs font-bold bg-opac-orange/20 hover:bg-opac-orange/40 rounded-lg text-opac-orange border border-opac-orange/50">Tout</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BOUTON : NETTOYAGE IA -->
+                    <button onclick="startAICleaning()" class="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-extrabold shadow-lg transition-all border border-purple-400 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Nettoyage IA
+                    </button>
+                    
+                    <button onclick="addRow()" class="bg-opac-white/10 hover:bg-opac-orange/20 px-4 py-2 rounded-xl text-sm border border-opac-orange/30 text-opac-white flex items-center gap-2 transition-colors ml-2">
+                        <i class="fa-solid fa-plus text-opac-orange"></i> Ajouter
+                    </button>
+                    <label for="importCsvInput" class="cursor-pointer bg-opac-white/10 hover:bg-opac-orange/20 px-4 py-2 rounded-xl text-sm border border-opac-orange/30 text-opac-white flex items-center gap-2 transition-colors">
+                        <i class="fa-solid fa-upload text-opac-orange"></i> Importer CSV
+                    </label>
+                    <input type="file" id="importCsvInput" accept=".csv" class="hidden" onchange="importCSVFromUser(event)">
+                    <button onclick="downloadCSV()" class="bg-opac-white/10 hover:bg-opac-orange/20 px-4 py-2 rounded-xl text-sm border border-opac-orange/30 text-opac-white flex items-center gap-2 transition-colors">
+                        <i class="fa-solid fa-download text-opac-white"></i> Exporter
+                    </button>
+                    <button onclick="saveTableChanges()" class="bg-opac-orange hover:bg-opacity-90 text-opac-black px-5 py-2 rounded-xl text-sm font-extrabold shadow-lg transition-all border border-opac-orange">
+                        Valider
+                    </button>
+                    <button onclick="toggleTableView()" class="text-opac-grey hover:text-opac-orange px-2 transition-colors font-semibold">Fermer</button>
+                </div>
+            </div>
+            <div id="tableContainerScroll" class="flex-grow overflow-auto bg-opac-white">
+                <div id="tableContent"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // =====================================================================
+        // 📚 GESTION DES DOCUMENTS SYSTÈME (Lecteur PDF Natif direct)
+        // =====================================================================
+        
+        let systemDocs = JSON.parse(localStorage.getItem('grc_system_docs')) || {
+            secteurs: "fichiers/repartition-secteurs.pdf",
+            heating: "fichiers/carnet-chauffage.pdf",
+            ascenseurs: "fichiers/codes-ascenseurs.pdf"
+        };
+
+        function openSystemDoc(key) {
+            const url = systemDocs[key];
+            const titles = {
+                secteurs: "Chargés de Secteurs",
+                heating: "Carnet de Chauffage",
+                ascenseurs: "Codes Ascenseurs"
+            };
+            
+            document.getElementById('pdfViewerTitle').innerText = titles[key];
+            const container = document.getElementById('pdfEmbedContainer');
+            const externalLinkBtn = document.getElementById('externalPdfLink');
+            const downloadLinkBtn = document.getElementById('downloadPdfLink');
+            
+            // Si le lien est vide ou non configuré
+            if (!url || url.trim() === '') {
+                if(externalLinkBtn) externalLinkBtn.classList.add('hidden');
+                if(downloadLinkBtn) downloadLinkBtn.classList.add('hidden');
+                container.innerHTML = `
+                    <div class="text-center flex flex-col items-center gap-4 bg-opac-black/50 p-8 rounded-2xl border border-rose-500/30">
+                        <i class="fa-solid fa-link-slash text-5xl text-rose-500"></i>
+                        <h3 class="text-xl font-bold text-opac-white">Aucun lien configuré pour ce document</h3>
+                        <p class="text-sm text-opac-white/70 max-w-md">Passez en <strong>Mode Administrateur</strong> via le menu de gauche, puis cliquez sur l'icône <i class="fa-solid fa-pen mx-1"></i> (Crayon) à côté du document pour définir son adresse (URL).</p>
+                    </div>
+                `;
+            } else {
+                if(externalLinkBtn) {
+                    externalLinkBtn.href = url;
+                    externalLinkBtn.classList.remove('hidden');
+                }
+                if(downloadLinkBtn) {
+                    downloadLinkBtn.href = url;
+                    downloadLinkBtn.download = (titles[key] || 'document') + ".pdf";
+                    downloadLinkBtn.classList.remove('hidden');
+                }
+                
+                // DETECTION LOCALE POUR CONTOURNER LE BLOCAGE CHROME
+                if (window.location.protocol === 'file:' && url.startsWith('blob:')) {
+                    container.innerHTML = `
+                        <div class="text-center flex flex-col items-center gap-4 bg-opac-black/50 p-8 rounded-2xl border border-opac-orange/30 shadow-xl">
+                            <i class="fa-solid fa-shield-halved text-5xl text-opac-orange"></i>
+                            <h3 class="text-xl font-bold text-opac-white">Sécurité Chrome Activée</h3>
+                            <p class="text-sm text-opac-white/70 max-w-md">L'application s'exécute depuis votre ordinateur. Chrome bloque l'aperçu interne des fichiers locaux par sécurité.</p>
+                            <div class="flex flex-wrap justify-center gap-3 mt-2">
+                                <a href="${url}" target="_blank" class="bg-opac-orange text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2 shadow-lg">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Chrome
+                                </a>
+                                <a href="${url}" download="${titles[key] || 'document'}.pdf" class="bg-opac-white text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-opac-orange transition-colors flex items-center gap-2 shadow-lg">
+                                    <i class="fa-solid fa-desktop"></i> Acrobat Reader
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Injection via iframe (plus robuste que embed) avec fond blanc pour éviter la transparence
+                    container.innerHTML = `
+                        <iframe 
+                            src="${url}#view=FitH" 
+                            class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
+                            title="${titles[key]}"
+                        ></iframe>
+                    `;
+                }
+            }
+            
+            // Bascule des vues
+            document.getElementById('mainDashboard').classList.add('hidden');
+            document.getElementById('tableView').classList.add('hidden');
+            document.getElementById('pdfReaderView').classList.remove('hidden');
+            
+            if (window.innerWidth < 768 && isSidebarOpen) toggleSidebar();
+        }
+
+        function loadVisualPdfFallback(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.type !== "application/pdf") {
+                showToast("Veuillez sélectionner un fichier au format PDF.", "error");
+                return;
+            }
+
+            // Création d'une URL mémoire instantanée (Contourne la limite de poids du Base64)
+            const fileUrl = URL.createObjectURL(file);
+            const container = document.getElementById('pdfEmbedContainer');
+            const externalLinkBtn = document.getElementById('externalPdfLink');
+            const downloadLinkBtn = document.getElementById('downloadPdfLink');
+            
+            if(externalLinkBtn) {
+                externalLinkBtn.href = fileUrl;
+                externalLinkBtn.classList.remove('hidden');
+            }
+            if(downloadLinkBtn) {
+                downloadLinkBtn.href = fileUrl;
+                downloadLinkBtn.download = file.name;
+                downloadLinkBtn.classList.remove('hidden');
+            }
+            
+            // DETECTION LOCALE POUR CONTOURNER LE BLOCAGE CHROME
+            if (window.location.protocol === 'file:') {
+                container.innerHTML = `
+                    <div class="text-center flex flex-col items-center gap-4 bg-opac-black/50 p-8 rounded-2xl border border-opac-orange/30 shadow-xl">
+                        <i class="fa-solid fa-shield-halved text-5xl text-opac-orange"></i>
+                        <h3 class="text-xl font-bold text-opac-white">Sécurité Chrome Activée</h3>
+                        <p class="text-sm text-opac-white/70 max-w-md">Vous exécutez l'application depuis votre disque dur local. Chrome interdit l'aperçu de ce PDF à l'intérieur de la page.</p>
+                        <div class="flex flex-wrap justify-center gap-3 mt-2">
+                            <a href="${fileUrl}" target="_blank" class="bg-opac-orange text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2 shadow-lg">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Chrome
+                            </a>
+                            <a href="${fileUrl}" download="${escapeHTML(file.name)}" class="bg-opac-white text-opac-black px-6 py-3 rounded-xl font-bold hover:bg-opac-orange transition-colors flex items-center gap-2 shadow-lg">
+                                <i class="fa-solid fa-desktop"></i> Acrobat Reader
+                            </a>
+                        </div>
+                    </div>
+                `;
+                showToast("Aperçu bloqué. Ouvrez via le bouton central.", "error");
+            } else {
+                container.innerHTML = `
+                    <iframe 
+                        src="${fileUrl}#view=FitH" 
+                        class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
+                        title="${escapeHTML(file.name)}"
+                    ></iframe>
+                `;
+                showToast("Document local chargé instantanément.", "success");
+            }
+            
+            event.target.value = ''; // Réinitialisation de l'input
+        }
+
+        // =====================================================================
+        // 🌓 BASCULE MODE SOMBRE
+        // =====================================================================
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            
+            const icon = document.getElementById('darkModeIcon');
+            if (icon) {
+                icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark');
+                const icon = document.getElementById('darkModeIcon');
+                if (icon) icon.className = 'fa-solid fa-sun';
+            } else {
+                document.documentElement.classList.remove('dark');
+                const icon = document.getElementById('darkModeIcon');
+                if (icon) icon.className = 'fa-solid fa-moon';
+            }
+        });
+
+        // =====================================================================
+        // 🗂️ TOASTS & PRESSE-PAPIERS
+        // =====================================================================
+        
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            toast.className = `glass-panel pointer-events-auto px-5 py-3 rounded-xl flex items-center gap-3 shadow-lg border-l-4 ${type === 'success' ? 'border-l-opac-orange' : 'border-l-rose-500'} toast-enter bg-opac-white`;
+            
+            const iconHTML = type === 'success' 
+                ? `<i class="fa-solid fa-circle-check text-opac-orange text-lg"></i>`
+                : `<i class="fa-solid fa-triangle-exclamation text-rose-500 text-lg"></i>`;
+
+            toast.innerHTML = `
+                ${iconHTML}
+                <p class="text-sm font-bold text-opac-blue">${message}</p>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.replace('toast-enter', 'toast-exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function copyToClipboard(text, successMessage = "Copié dans le presse-papiers") {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '0';
+            textarea.style.opacity = '0';
+            
+            document.body.appendChild(textarea);
+            
+            if (navigator.userAgent.match(/ipad|iphone/i)) {
+                const range = document.createRange();
+                range.selectNodeContents(textarea);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                textarea.setSelectionRange(0, 999999);
+            } else {
+                textarea.select();
+            }
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) showToast(successMessage, 'success');
+                else showToast("Échec de la copie automatique.", 'error');
+            } catch (err) {
+                showToast("Votre navigateur bloque la copie.", 'error');
+            }
+            
+            document.body.removeChild(textarea);
+        }
+
+        // =====================================================================
+        // 🗂️ SIDEBAR & PARAMÈTRES
+        // =====================================================================
+        let isSidebarOpen = false;
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('appSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (!isSidebarOpen) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+                isSidebarOpen = true;
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+                isSidebarOpen = false;
+            }
+        }
+
+        function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            const content = document.getElementById('settingsModalContent');
+
+            const savedGemini = localStorage.getItem('geminiApiKey');
+            if (savedGemini && savedGemini !== "null" && savedGemini !== "undefined") {
+                document.getElementById('geminiApiKey').value = savedGemini;
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeSettings() {
+            const modal = document.getElementById('settingsModal');
+            const content = document.getElementById('settingsModalContent');
+            
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function saveSettings() {
+            const geminiKey = document.getElementById('geminiApiKey').value.trim();
+            localStorage.setItem('geminiApiKey', geminiKey);
+            closeSettings();
+            showToast("Paramètres sauvegardés", "success");
+        }
+
+        // --- GESTION ADMINISTRATEUR GLOBALE ---
+        let isAdmin = false;
+        let pendingAdminAction = null; 
+
+        function handleDatabaseAccess() {
+            if (isAdmin) toggleTableView();
+            else { pendingAdminAction = 'db'; requestAdminAccess(); }
+        }
+
+        function toggleAdminMode() {
+            if (isAdmin) {
+                isAdmin = false;
+                pendingAdminAction = null;
+                updateAdminUI();
+                showToast("Mode Administrateur désactivé", "success");
+            } else {
+                pendingAdminAction = null;
+                requestAdminAccess();
+            }
+        }
+
+        function requestAdminAccess() {
+            const modal = document.getElementById('passwordModal');
+            const content = document.getElementById('passwordModalContent');
+            
+            document.getElementById('dbPasswordInput').value = ''; 
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+                document.getElementById('dbPasswordInput').focus(); 
+            }, 10);
+        }
+
+        function closePasswordModal() {
+            const modal = document.getElementById('passwordModal');
+            const content = document.getElementById('passwordModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            pendingAdminAction = null;
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function verifyPassword() {
+            const pwdInput = document.getElementById('dbPasswordInput');
+            const pwd = pwdInput.value;
+            
+            if (pwd === 'Password') {
+                isAdmin = true;
+                closePasswordModal();
+                updateAdminUI();
+                showToast("Accès administrateur accordé", "success");
+                
+                if (pendingAdminAction === 'db') {
+                    toggleTableView();
+                    if(isSidebarOpen) toggleSidebar();
+                }
+                pendingAdminAction = null;
+            } else {
+                showToast("Mot de passe incorrect", "error");
+                pwdInput.value = ''; 
+                const content = document.getElementById('passwordModalContent');
+                content.classList.add('translate-x-2');
+                setTimeout(() => content.classList.replace('translate-x-2', '-translate-x-2'), 50);
+                setTimeout(() => content.classList.replace('-translate-x-2', 'translate-x-0'), 100);
+            }
+        }
+
+        function updateAdminUI() {
+            if (isAdmin) document.body.classList.add('admin-mode');
+            else document.body.classList.remove('admin-mode');
+
+            const adminBtn = document.getElementById('adminToggleBtn');
+            const iconBg = document.getElementById('adminToggleIconBg');
+            const icon = document.getElementById('adminToggleIcon');
+            const text = document.getElementById('adminToggleText');
+            const subtext = document.getElementById('adminToggleSubtext');
+            const dbLock = document.getElementById('dbLockIcon');
+            const addShortcutBtn = document.getElementById('addShortcutBtn');
+
+            if (isAdmin) {
+                adminBtn.classList.replace('hover:bg-rose-500/20', 'hover:bg-opac-white/5');
+                adminBtn.classList.add('border-rose-500/50', 'bg-rose-500/10');
+                iconBg.classList.replace('bg-opac-black/30', 'bg-rose-500');
+                iconBg.classList.replace('border-opac-grey/30', 'border-rose-600');
+                iconBg.classList.replace('text-opac-grey', 'text-white');
+                icon.className = "fa-solid fa-unlock w-4 text-center";
+                text.classList.add('text-rose-500');
+                subtext.innerText = "Activé";
+                subtext.classList.replace('text-opac-grey/50', 'text-rose-400/80');
+                dbLock.classList.add('hidden');
+                addShortcutBtn.classList.remove('hidden');
+            } else {
+                adminBtn.classList.replace('hover:bg-opac-white/5', 'hover:bg-rose-500/20');
+                adminBtn.classList.remove('border-rose-500/50', 'bg-rose-500/10');
+                iconBg.classList.replace('bg-rose-500', 'bg-opac-black/30');
+                iconBg.classList.replace('border-rose-600', 'border-opac-grey/30');
+                iconBg.classList.replace('text-white', 'text-opac-grey');
+                icon.className = "fa-solid fa-lock w-4 text-center";
+                text.classList.remove('text-rose-500');
+                subtext.innerText = "Désactivé";
+                subtext.classList.replace('text-rose-400/80', 'text-opac-grey/50');
+                dbLock.classList.remove('hidden');
+                addShortcutBtn.classList.add('hidden');
+            }
+            renderShortcuts();
+        }
+
+        // --- GESTION DES RACCOURCIS (LIENS/DOCUMENTS) ---
+        let shortcutsData = [];
+
+        function loadShortcuts() {
+            const saved = localStorage.getItem('grc_shortcuts');
+            let defaultShortcuts = [
+                { id: 1, name: "Bienvenue (Nouveaux)", url: "fichiers/bienvenue.pdf" },
+                { id: 2, name: "Book Scripts", url: "fichiers/book-scripts.pdf" },
+                { id: 5, name: "Équipements du logement", url: "fichiers/equipements-logement.pdf" },
+                { id: 7, name: "BRL", url: "fichiers/brl.pdf" },
+                { 
+                    id: 8, 
+                    name: "RDV Cal.com", 
+                    subLinks: [
+                        { name: "Devenir Locataire", url: "https://www.opac36.fr/prendre-rendez-vous-pour-devenir-locataire/" },
+                        { name: "Devenir Propriétaire", url: "https://www.opac36.fr/prendre-rendez-vous-pour-devenir-proprietaire/" }
+                    ]
+                },
+                { id: 9, name: "Demande dossier (Mail)", type: "form", target: "formModalDemandeDossier", icon: "fa-envelope-open-text" },
+                { id: 10, name: "Demande dossier (Courrier)", type: "form", target: "formModalDemandeCourrier", icon: "fa-envelopes-bulk" },
+                { id: 11, name: "Enregistrement DGA", type: "form", target: "formModalDemandeNumUnique", icon: "fa-fingerprint" }
+            ];
+
+            if (saved) {
+                try { shortcutsData = JSON.parse(saved); } catch(e) { shortcutsData = defaultShortcuts; }
+            } else {
+                shortcutsData = defaultShortcuts;
+                saveShortcutsToMemory();
+            }
+            renderShortcuts();
+        }
+
+        function saveShortcutsToMemory() { localStorage.setItem('grc_shortcuts', JSON.stringify(shortcutsData)); }
+
+        function renderShortcuts() {
+            const list = document.getElementById('shortcutList');
+            if(!list) return;
+            
+            if (shortcutsData.length === 0) {
+                list.innerHTML = `<li class="text-xs text-opac-grey/50 italic text-center py-2">Aucun raccourci configuré</li>`;
+                return;
+            }
+            
+            list.innerHTML = '';
+            shortcutsData.forEach(sc => {
+                const li = document.createElement('li');
+                li.className = "flex flex-col w-full group relative mb-1 hover:bg-opac-white/5 rounded-lg px-2 transition-colors";
+                
+                let mainContent = '';
+                
+                if (sc.subLinks) {
+                    mainContent = `
+                        <div class="flex items-center justify-between w-full">
+                            <button onclick="toggleSubMenu('submenu-${sc.id}')" class="flex items-center gap-2 text-sm text-opac-white/80 hover:text-opac-orange transition-colors truncate max-w-[320px] py-1.5 w-full text-left" title="${escapeHTML(sc.name)}">
+                                <i class="fa-regular fa-folder-open text-[10px] text-opac-orange/70 w-3"></i>
+                                <span class="truncate font-semibold">${escapeHTML(sc.name)}</span>
+                                <i id="icon-submenu-${sc.id}" class="fa-solid fa-chevron-down text-[9px] ml-1 transition-transform duration-300"></i>
+                            </button>
+                        </div>
+                        <div id="submenu-${sc.id}" class="hidden flex-col gap-2 mb-2 border-l border-opac-orange/20 ml-1.5 pl-3 py-1">
+                            ${sc.subLinks.map(sub => `
+                                <a href="${escapeHTML(sub.url)}" target="_blank" class="flex items-center gap-2 text-[11px] text-opac-white/60 hover:text-opac-orange transition-colors w-full" title="${escapeHTML(sub.name)}">
+                                    <i class="fa-solid fa-angle-right text-[8px] opacity-50 shrink-0"></i>
+                                    <span class="truncate break-words whitespace-normal">${escapeHTML(sub.name)}</span>
+                                </a>
+                            `).join('')}
+                        </div>
+                    `;
+                } else if (sc.type === "form") {
+                    const iconClass = sc.icon || 'fa-pen-to-square';
+                    mainContent = `
+                        <div class="flex items-center justify-between w-full py-0.5">
+                            <button onclick="openFormModal('${sc.target}')" class="flex items-center gap-2 text-sm text-opac-white/80 hover:text-opac-orange transition-colors truncate max-w-[320px] text-left py-1 w-full" title="${escapeHTML(sc.name)}">
+                                <i class="fa-solid ${iconClass} text-[10px] text-opac-orange/80 group-hover:text-opac-orange w-3"></i>
+                                <span class="truncate text-opac-orange/90 font-medium">${escapeHTML(sc.name)}</span>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    const clickAction = sc.url2 
+                        ? `href="${escapeHTML(sc.url)}" target="_blank" onclick="window.open('${escapeHTML(sc.url2)}', '_blank');"`
+                        : `href="${escapeHTML(sc.url)}" target="_blank"`;
+                    const iconClass = sc.url2 ? 'fa-clone' : 'fa-arrow-up-right-from-square';
+
+                    mainContent = `
+                        <div class="flex items-center justify-between w-full py-0.5">
+                            <a ${clickAction} class="flex items-center gap-2 text-sm text-opac-white/80 hover:text-opac-orange transition-colors truncate max-w-[320px] py-1 w-full" title="${escapeHTML(sc.name)}">
+                                <i class="fa-solid ${iconClass} text-[10px] text-opac-grey/40 group-hover:text-opac-orange/70 w-3"></i>
+                                <span class="truncate">${escapeHTML(sc.name)}</span>
+                            </a>
+                        </div>
+                    `;
+                }
+
+                const adminControls = isAdmin ? `
+                    <div class="absolute right-0 top-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-opac-black/60 rounded px-1 backdrop-blur-md z-10 border border-opac-white/10">
+                        ${(!sc.subLinks && sc.type !== "form") ? `<button onclick="editShortcut(${sc.id})" class="text-opac-grey/50 hover:text-opac-orange w-5 h-5 flex items-center justify-center rounded" title="Modifier"><i class="fa-solid fa-pen text-[10px]"></i></button>` : ''}
+                        <button onclick="deleteShortcut(${sc.id})" class="text-opac-grey/50 hover:text-rose-500 w-5 h-5 flex items-center justify-center rounded" title="Supprimer">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                        </button>
+                    </div>
+                ` : '';
+
+                li.innerHTML = mainContent + adminControls;
+                list.appendChild(li);
+            });
+        }
+
+        // =====================================================================
+        // LOGIQUE DES FORMULAIRES METIER
+        // =====================================================================
+        
+        function openFormModal(modalId) {
+            const modal = document.getElementById(modalId);
+            const content = document.getElementById(modalId + 'Content');
+            if(!modal || !content) return;
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+            if (window.innerWidth < 768 && isSidebarOpen) toggleSidebar();
+        }
+
+        function closeFormModal(modalId) {
+            const modal = document.getElementById(modalId);
+            const content = document.getElementById(modalId + 'Content');
+            if(!modal || !content) return;
+            
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function generateEmailDemandeDossier() {
+            const nom = document.getElementById('form1-nom').value.trim() || "[Nom]";
+            const tel = document.getElementById('form1-tel').value.trim() || "[Tel]";
+            const mail = document.getElementById('form1-mail').value.trim() || "[Mail]";
+            const typeLogement = document.getElementById('form1-type').value.trim() || "[Type]";
+            const commune = document.getElementById('form1-commune').value.trim() || "[Commune]";
+
+            const destinataire = "clientele@opac36.fr"; 
+            const objet = "Demande de dossier par mail";
+            const corps = `Bonjour,\n\n${nom} souhaiterait recevoir un dossier de demande de logement par mail pour un ${typeLogement} sur la commune de ${commune}.\n\ntel : ${tel}\nMail : ${mail}\n\nCordialement,`;
+
+            const finalUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(destinataire)}&subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
+            window.open(finalUrl, '_blank');
+            showToast("Ouverture d'Outlook Web...", "success");
+            
+            copyToClipboard(`À : ${destinataire}\nObjet : ${objet}\n\n${corps}`, "Texte de l'email copié (Sécurité)");
+        }
+
+        function generateEmailDemandeCourrier() {
+            const nom = document.getElementById('form2-nom').value.trim() || "[Nom]";
+            const tel = document.getElementById('form2-tel').value.trim() || "[Tel]";
+            const adresse = document.getElementById('form2-adresse').value.trim() || "[Adresse]";
+            const typeLogement = document.getElementById('form2-type').value.trim() || "[Type]";
+            const commune = document.getElementById('form2-commune').value.trim() || "[Commune]";
+
+            const destinataire = "clientele@opac36.fr"; 
+            const objet = "Demande de dossier par courrier";
+            const corps = `Bonjour,\n\n${nom} souhaiterait recevoir un dossier de demande de logement par courrier pour un ${typeLogement} sur la commune de ${commune}.\n\ntel : ${tel}\nAdresse postale : \n${adresse}\n\nCordialement,`;
+
+            const finalUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(destinataire)}&subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
+            window.open(finalUrl, '_blank');
+            showToast("Ouverture d'Outlook Web...", "success");
+            
+            copyToClipboard(`À : ${destinataire}\nObjet : ${objet}\n\n${corps}`, "Texte de l'email copié (Sécurité)");
+        }
+
+        function generateEmailDemandeNumUnique() {
+            const nom = document.getElementById('form3-nom').value.trim() || "[Nom]";
+            const tel = document.getElementById('form3-tel').value.trim() || "[Tel]";
+            const numUnique = document.getElementById('form3-num').value.trim() || "[Numéro]";
+
+            const destinataire = "adm.dga@opac36.fr"; 
+            const objet = "Demande enregistrement dossier";
+            const corps = `Bonjour,\n\n${nom} a essayé de vous joindre, pouvez-vous l'enregistrer via son numéro unique.\n\nTel : ${tel}\nNuméro unique : ${numUnique}\n\nCordialement,`;
+
+            const finalUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(destinataire)}&subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
+            window.open(finalUrl, '_blank');
+            showToast("Ouverture d'Outlook Web...", "success");
+            
+            copyToClipboard(`À : ${destinataire}\nObjet : ${objet}\n\n${corps}`, "Texte de l'email copié (Sécurité)");
+        }
+
+        function toggleSubMenu(id) {
+            const el = document.getElementById(id);
+            const iconId = id.replace('submenu-', 'icon-submenu-');
+            const icon = document.getElementById(iconId);
+            
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+                if(icon) icon.classList.add('rotate-180');
+            } else {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+                if(icon) icon.classList.remove('rotate-180');
+            }
+        }
+
+        // =====================================================================
+        // EDITION DES LIENS & SYSTEME DOCS
+        // =====================================================================
+        function openShortcutModal() {
+            const modal = document.getElementById('shortcutModal');
+            const content = document.getElementById('shortcutModalContent');
+            
+            document.getElementById('shortcutIdInput').value = '';
+            document.getElementById('shortcutNameInput').value = '';
+            document.getElementById('shortcutNameInput').disabled = false;
+            document.getElementById('shortcutUrlInput').value = '';
+            if(document.getElementById('shortcutFileInput')) document.getElementById('shortcutFileInput').value = '';
+            if(document.getElementById('shortcutUrl2Input')) {
+                document.getElementById('shortcutUrl2Input').value = '';
+                document.getElementById('shortcutUrl2Input').parentElement.classList.remove('hidden');
+            }
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+                document.getElementById('shortcutNameInput').focus();
+            }, 10);
+        }
+
+        function editShortcut(id) {
+            const sc = shortcutsData.find(s => s.id === id);
+            if(!sc) return;
+            openShortcutModal();
+            setTimeout(() => {
+                document.getElementById('shortcutIdInput').value = sc.id;
+                document.getElementById('shortcutNameInput').value = sc.name;
+                document.getElementById('shortcutUrlInput').value = sc.url || '';
+                if(document.getElementById('shortcutUrl2Input')) document.getElementById('shortcutUrl2Input').value = sc.url2 || '';
+            }, 20);
+        }
+
+        function editSystemDoc(key) {
+            openShortcutModal();
+            setTimeout(() => {
+                document.getElementById('shortcutIdInput').value = 'sysdoc_' + key;
+                document.getElementById('shortcutNameInput').value = "Lien Document (" + key.toUpperCase() + ")";
+                document.getElementById('shortcutNameInput').disabled = true;
+                document.getElementById('shortcutUrlInput').value = systemDocs[key] || '';
+                if(document.getElementById('shortcutUrl2Input')) document.getElementById('shortcutUrl2Input').parentElement.classList.add('hidden');
+            }, 20);
+        }
+
+        function handleAdminFileLoad(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.type !== "application/pdf") {
+                showToast("Seuls les PDF sont acceptés.", "error");
+                return;
+            }
+            // Création de l'URL mémoire temporaire injectée dans le champ texte
+            const fileUrl = URL.createObjectURL(file);
+            document.getElementById('shortcutUrlInput').value = fileUrl;
+            showToast("Fichier PC lié pour test temporaire.", "success");
+        }
+
+        function closeShortcutModal() {
+            const modal = document.getElementById('shortcutModal');
+            const content = document.getElementById('shortcutModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function saveShortcut() {
+            const id = document.getElementById('shortcutIdInput').value;
+            const name = document.getElementById('shortcutNameInput').value.trim();
+            let url = document.getElementById('shortcutUrlInput').value.trim();
+            let url2 = document.getElementById('shortcutUrl2Input') ? document.getElementById('shortcutUrl2Input').value.trim() : '';
+            
+            if (!name || !url) {
+                showToast("Veuillez remplir l'URL principale.", "error");
+                return;
+            }
+            
+            if (!/^https?:\/\//i.test(url) && !url.includes('.pdf') && !url.includes('/')) url = 'http://' + url;
+            if (url2 && !/^https?:\/\//i.test(url2) && !url2.includes('.pdf') && !url2.includes('/')) url2 = 'http://' + url2;
+
+            // Enregistrement d'un document système (Lecteur PDF Natif)
+            if (id && id.startsWith('sysdoc_')) {
+                const key = id.replace('sysdoc_', '');
+                systemDocs[key] = url;
+                localStorage.setItem('grc_system_docs', JSON.stringify(systemDocs));
+                closeShortcutModal();
+                showToast("Lien système mis à jour", "success");
+                
+                // Si on était déjà en train de le regarder, on le rafraîchit
+                const currentTitle = document.getElementById('pdfViewerTitle').innerText;
+                if (!document.getElementById('pdfReaderView').classList.contains('hidden') && 
+                   ((key === 'heating' && currentTitle.includes("Chauffage")) || 
+                    (key === 'secteurs' && currentTitle.includes("Secteurs")) || 
+                    (key === 'ascenseurs' && currentTitle.includes("Ascenseurs")))) {
+                    openSystemDoc(key);
+                }
+                return;
+            }
+
+            if (id && !id.startsWith('sysdoc_')) {
+                const sc = shortcutsData.find(s => s.id == id);
+                if (sc) { sc.name = name; sc.url = url; sc.url2 = url2; }
+            } else {
+                shortcutsData.push({ id: Date.now(), name, url, url2 });
+            }
+
+            saveShortcutsToMemory();
+            renderShortcuts();
+            closeShortcutModal();
+            showToast(id ? "Raccourci modifié" : "Raccourci ajouté", "success");
+        }
+
+        function deleteShortcut(id) {
+            if(confirm("Confirmer la suppression de ce raccourci ?")) {
+                shortcutsData = shortcutsData.filter(sc => sc.id !== id);
+                saveShortcutsToMemory();
+                renderShortcuts();
+            }
+        }
+        
+        function showSummaryModal(summaryText) {
+            const modal = document.getElementById('summaryModal');
+            const content = document.getElementById('summaryModalContent');
+            const textarea = document.getElementById('aiSummaryTextarea');
+            
+            if(!modal || !content || !textarea) return;
+            
+            textarea.value = summaryText;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeSummaryModal() {
+            const modal = document.getElementById('summaryModal');
+            const content = document.getElementById('summaryModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function copySummaryFromModal() {
+            const textarea = document.getElementById('aiSummaryTextarea');
+            if(textarea) copyToClipboard(textarea.value, "Résumé copié !");
+        }
+
+        // =====================================================================
+        // 🛠️ UTILITAIRES ET VARIABLES GLOBALES
+        // =====================================================================
+        let allData = [];
+        let originalHeaders = [];
+        let searchHistory = [];
+        const embeddedCSV = `Numéro;Domaine;Activité;Type de demande;N° Dessin;Eléments;Descriptif;Demande;Contact;Destinataire;Scénario GRC;Scénario Gardien;Suivi évènementiel 1;NB 1;Suivi évènementiel 2;NB 2;Suivi évènementiel 3;NB 3;Lien hypertexte;Vérif erreur
+1;Plomberie;Fuite;Intervention;PLB-01;Robinet;Fuite sous évier;Réparation fuite;Locataire;Prestataire;Prendre RDV locataire;Vérifier dégâts des eaux;;;;;;;;`;
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function getSafeValue(row, primaryKey, secondaryKey, suffix = '') {
+            if (!row) return '';
+            if (row[primaryKey + suffix] !== undefined) return row[primaryKey + suffix];
+            if (row[secondaryKey + suffix] !== undefined) return row[secondaryKey + suffix];
+            const keyMatch = Object.keys(row).find(k => k.toLowerCase().includes(primaryKey.toLowerCase()) || k.toLowerCase().includes(secondaryKey.toLowerCase()));
+            return keyMatch ? row[keyMatch] : '';
+        }
+
+        function formatScenarios(text) {
+            if (!text) return '-';
+            return escapeHTML(text).replace(/\n/g, '<br>');
+        }
+
+        function repairJSON(jsonStr) {
+            try { return JSON.parse(jsonStr); } catch (e) {
+                let repaired = jsonStr.replace(/,\s*([\]}])/g, '$1'); 
+                try { return JSON.parse(repaired); } catch (e2) { return {}; }
+            }
+        }
+
+        function highlightTerms(text, terms) {
+            if (!text || !terms || terms.length === 0) return escapeHTML(text);
+            let highlighted = escapeHTML(text);
+            terms.forEach(term => {
+                if (term.length > 2) {
+                    const regex = new RegExp(`(${escapeHTML(term)})`, 'gi');
+                    highlighted = highlighted.replace(regex, '<span class="bg-opac-orange/30 text-opac-orange font-bold px-1 rounded">$1</span>');
+                }
+            });
+            return highlighted;
+        }
+
+        function cleanRawData(data, headers) {
+            return { cleanedData: data, cleanedHeaders: headers };
+        }
+
+        // =====================================================================
+        // 🧠 API GEMINI (Nettoyage & Vocal)
+        // =====================================================================
+        async function fetchGeminiAPI(payload) {
+            let apiKey = ""; 
+            let model = "gemini-2.5-flash-preview-09-2025";
+            const retries = 3;
+            const delays = [1000, 2000, 4000];
+            
+            for (let i = 0; i < retries; i++) {
+                try {
+                    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok && (response.status === 401 || response.status === 403)) {
+                        const customKey = localStorage.getItem('geminiApiKey');
+                        if (customKey && customKey.trim() !== "") {
+                            apiKey = customKey.trim(); model = "gemini-1.5-flash"; 
+                            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                            });
+                        }
+                    }
+
+                    if (!response.ok) {
+                        const err = new Error(`Erreur HTTP: ${response.status}`); err.status = response.status; throw err;
+                    }
+                    return await response.json();
+                } catch (e) {
+                    if (i === retries - 1) throw e;
+                    await new Promise(res => setTimeout(res, delays[i]));
+                }
+            }
+        }
+
+        async function startAICleaning() {
+            if (!allData || allData.length === 0) {
+                showToast("La base de données est vide.", "error"); return;
+            }
+
+            const overlay = document.getElementById('aiBatchOverlay');
+            const progressText = document.getElementById('aiBatchProgressText');
+            const progressBar = document.getElementById('aiBatchProgressBar');
+            
+            overlay.classList.remove('hidden'); overlay.classList.add('flex');
+            
+            const batchSize = 30; 
+            let cleanedData = [];
+            const totalBatches = Math.ceil(allData.length / batchSize);
+
+            for (let i = 0; i < allData.length; i += batchSize) {
+                const chunk = allData.slice(i, i + batchSize);
+                const currentBatch = Math.floor(i / batchSize) + 1;
+                
+                progressText.innerText = `Analyse et correction des fiches... (Lot ${currentBatch}/${totalBatches})`;
+                progressBar.style.width = `${(currentBatch / totalBatches) * 100}%`;
+                
+                try {
+                    const prompt = `Tu es expert en nettoyage de BDD. Corrige l'encodage (ex: ",lectronique" -> "électronique"). Ne modifie ni la structure ni les clés. Renvoie un tableau JSON pur sans balises.`;
+                    const payload = {
+                        contents: [{ role: "user", parts: [{ text: prompt + "\n\n" + JSON.stringify(chunk) }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    };
+
+                    const responseData = await fetchGeminiAPI(payload);
+                    const rawJsonText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (rawJsonText) {
+                        let safeJsonText = rawJsonText.trim();
+                        const jsonMatch = safeJsonText.match(/\[[\s\S]*\]/);
+                        if (jsonMatch) safeJsonText = jsonMatch[0];
+                        let parsedChunk = repairJSON(safeJsonText);
+                        cleanedData = cleanedData.concat(parsedChunk);
+                    } else throw new Error("Réponse vide de l'IA");
+                } catch (error) {
+                    cleanedData = cleanedData.concat(chunk);
+                    showToast(`Échec mineur sur le lot ${currentBatch}, données originales conservées.`, "error");
+                }
+            }
+            
+            allData = cleanedData; saveToMemory(); renderEditableTable();
+            overlay.classList.add('hidden'); overlay.classList.remove('flex');
+            showToast("Nettoyage par IA terminé !", "success");
+        }
+
+        // =====================================================================
+        // 🎙️ RECHERCHE VOCALE
+        // =====================================================================
+        let simpleRecognition = null;
+        let isSimpleRecording = false;
+        let aiRecognition = null;
+        let isAIListening = false;
+        let liveTranscriptBuffer = "";
+        let aiSilenceTimer = null;
+
+        function initSpeechRecognition() {
+            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                
+                simpleRecognition = new SpeechRecognition();
+                simpleRecognition.lang = 'fr-FR'; simpleRecognition.interimResults = false;
+                simpleRecognition.onresult = (event) => {
+                    document.getElementById('searchInput').value = event.results[0][0].transcript.replace(/[.,!?]$/, ''); 
+                    handleSearch(); stopVoiceSearch();
+                };
+                simpleRecognition.onerror = () => stopVoiceSearch();
+                simpleRecognition.onend = () => stopVoiceSearch();
+
+                aiRecognition = new SpeechRecognition();
+                aiRecognition.lang = 'fr-FR'; aiRecognition.continuous = true; aiRecognition.interimResults = true; 
+                aiRecognition.onresult = (event) => {
+                    let interimTranscript = ''; let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+                        else interimTranscript += event.results[i][0].transcript;
+                    }
+                    if (finalTranscript) liveTranscriptBuffer += finalTranscript + " ";
+                    const displayElement = document.getElementById('aiLiveTranscript');
+                    if (liveTranscriptBuffer || interimTranscript) {
+                        displayElement.innerHTML = `<strong>${escapeHTML(liveTranscriptBuffer)}</strong> <span class="text-opac-orange">${escapeHTML(interimTranscript)}</span>`;
+                    }
+                    clearTimeout(aiSilenceTimer);
+                    aiSilenceTimer = setTimeout(() => { if (isAIListening && liveTranscriptBuffer.trim().length > 0) stopAndAnalyzeAI(); }, 2500);
+                };
+                aiRecognition.onerror = (e) => { if (e.error !== 'no-speech') forceStopAIListen(); };
+            } else {
+                document.getElementById('voiceSearchBtn')?.classList.add('hidden');
+                document.getElementById('aiListenBtn')?.classList.add('hidden');
+            }
+        }
+
+        function toggleVoiceSearch() {
+            if (isAIListening) forceStopAIListen(); 
+            if (!simpleRecognition) initSpeechRecognition();
+            if (!simpleRecognition) return;
+
+            if (isSimpleRecording) { simpleRecognition.stop(); } else {
+                try {
+                    simpleRecognition.start(); isSimpleRecording = true;
+                    document.getElementById('voiceIcon').classList.replace('fa-microphone', 'fa-microphone-lines');
+                    document.getElementById('voiceIcon').classList.add('animate-pulse', 'text-opac-orange');
+                    document.getElementById('searchInput').placeholder = "Écoute simple...";
+                } catch(e) {}
+            }
+        }
+
+        function stopVoiceSearch() {
+            isSimpleRecording = false;
+            const icon = document.getElementById('voiceIcon');
+            if(icon) { icon.classList.replace('fa-microphone-lines', 'fa-microphone'); icon.classList.remove('animate-pulse', 'text-opac-orange'); }
+            document.getElementById('searchInput').placeholder = "Rechercher un élément, un mot-clé, une panne...";
+        }
+
+        function toggleAIListen() {
+            if (isSimpleRecording) stopVoiceSearch();
+            if (!aiRecognition) initSpeechRecognition();
+            if (!aiRecognition) return;
+
+            if (isAIListening) { forceStopAIListen(); } else {
+                try {
+                    liveTranscriptBuffer = ""; clearTimeout(aiSilenceTimer); 
+                    document.getElementById('aiLiveTranscript').innerHTML = "(L'IA écoute votre conversation...)";
+                    document.getElementById('aiFloatingPanel').classList.remove('hidden');
+                    document.getElementById('aiFloatingPanel').classList.add('flex', 'ai-listening-active');
+                    aiRecognition.start(); isAIListening = true;
+                    const icon = document.getElementById('aiListenIcon');
+                    icon.classList.replace('fa-brain', 'fa-satellite-dish');
+                    icon.classList.add('animate-pulse'); icon.parentElement.classList.add('bg-opac-orange/20');
+                } catch(e) {}
+            }
+        }
+
+        function forceStopAIListen() {
+            clearTimeout(aiSilenceTimer);
+            if (isAIListening && aiRecognition) { aiRecognition.stop(); isAIListening = false; }
+            const icon = document.getElementById('aiListenIcon');
+            if (icon) {
+                icon.classList.replace('fa-satellite-dish', 'fa-brain'); icon.classList.remove('animate-pulse');
+                icon.parentElement.classList.remove('bg-opac-orange/20');
+            }
+            document.getElementById('aiFloatingPanel').classList.add('hidden');
+            document.getElementById('aiFloatingPanel').classList.remove('flex', 'ai-listening-active');
+            document.getElementById('aiProcessingOverlay').classList.add('hidden');
+            document.getElementById('aiProcessingOverlay').classList.remove('flex');
+        }
+
+        async function stopAndAnalyzeAI() {
+            clearTimeout(aiSilenceTimer);
+            if (isAIListening) { aiRecognition.stop(); isAIListening = false; }
+            
+            const transcriptToAnalyze = liveTranscriptBuffer.trim();
+            if (!transcriptToAnalyze) { forceStopAIListen(); return; }
+
+            document.getElementById('aiFloatingPanel').classList.remove('ai-listening-active');
+            document.getElementById('aiProcessingOverlay').classList.remove('hidden');
+            document.getElementById('aiProcessingOverlay').classList.add('flex');
+
+            try {
+                const prompt = `Analyse cette transcription : "${transcriptToAnalyze}". Génère objet JSON avec clés: "keyword" (1 à 3 mots techniques max) et "summary" (1 phrase).`;
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+
+                const responseData = await fetchGeminiAPI(payload);
+                const rawJsonText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (rawJsonText) {
+                    let safeJsonText = rawJsonText.trim();
+                    const jsonMatch = safeJsonText.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) safeJsonText = jsonMatch[0];
+                    const data = repairJSON(safeJsonText);
+                    
+                    if(data.keyword) {
+                        document.getElementById('searchInput').value = data.keyword.trim().replace(/[.,;:!?]/g, "");
+                        handleSearch();
+                    }
+                    if(data.summary) showSummaryModal(data.summary);
+                }
+            } catch (error) {
+                showToast("L'IA n'a pas pu formater le résumé.", "error");
+            } finally { forceStopAIListen(); }
+        }
+
+        // =====================================================================
+        // INITIALISATION GLOBALE
+        // =====================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initSpeechRecognition();
+            loadShortcuts(); 
+            
+            const savedData = localStorage.getItem('diagOphData');
+            const savedHeaders = localStorage.getItem('diagOphHeaders');
+
+            if (savedData && savedHeaders) {
+                try {
+                    let parsedData = JSON.parse(savedData);
+                    let parsedHeaders = JSON.parse(savedHeaders);
+                    if (parsedData.length > 0) {
+                        const cleaned = cleanRawData(parsedData, parsedHeaders);
+                        allData = cleaned.cleanedData;
+                        originalHeaders = cleaned.cleanedHeaders;
+                        saveToMemory();
+                        return; 
+                    }
+                } catch(e) {}
+            }
+
+            Papa.parse(embeddedCSV, {
+                header: true, skipEmptyLines: 'greedy', delimiter: ";",
+                complete: function(r) {
+                    let rawHeaders = r.meta.fields || [];
+                    let rawData = r.data.filter(row => getSafeValue(row, 'Descriptif', 'descriptif') || getSafeValue(row, 'Eléments', 'ment'));
+                    const cleaned = cleanRawData(rawData, rawHeaders);
+                    allData = cleaned.cleanedData;
+                    originalHeaders = cleaned.cleanedHeaders;
+                }
+            });
+        });
+
+        function saveToMemory() {
+            try { localStorage.setItem('diagOphData', JSON.stringify(allData)); localStorage.setItem('diagOphHeaders', JSON.stringify(originalHeaders)); } catch (e) {}
+        }
+
+        function importCSVFromUser(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            Papa.parse(file, {
+                header: true, skipEmptyLines: 'greedy', encoding: "windows-1252", 
+                complete: function(results) {
+                    if (results.data && results.data.length > 0) {
+                        let rawHeaders = results.meta.fields || [];
+                        let rawData = results.data.filter(row => getSafeValue(row, 'Descriptif', 'descriptif') || getSafeValue(row, 'Eléments', 'ment'));
+                        const cleaned = cleanRawData(rawData, rawHeaders);
+                        allData = cleaned.cleanedData;
+                        originalHeaders = cleaned.cleanedHeaders;
+                        renderEditableTable(); saveToMemory(); 
+                        showToast("Fichier CSV importé !", "success");
+                    }
+                }
+            });
+            event.target.value = ''; 
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.trim().toLowerCase();
+            const dropdown = document.getElementById('searchDropdown');
+            const clearBtn = document.getElementById('clearSearchBtn');
+
+            if (query.length > 0) {
+                clearBtn.classList.remove('hidden');
+                const stopWords = ['le', 'la', 'les', 'de', 'du', 'des', 'un', 'une', 'en', 'au', 'aux', 'et', 'ou', 'pour', 'par', 'sur', 'dans', 'avec', 'est', 'sont', 'problème', 'probleme', 'panne', 'souci', 'demande'];
+                let rawTerms = query.replace(/'/g, ' ').split(' ');
+                let terms = rawTerms.filter(t => t.length > 2 && !stopWords.includes(t));
+                if (terms.length === 0) terms = rawTerms.filter(t => t.length > 0);
+                const highlightWords = terms;
+
+                const results = allData.filter(row => {
+                    const text = Object.values(row).join(' ').toLowerCase();
+                    return terms.every(t => text.includes(t));
+                }); 
+                renderDropdown(results, highlightWords);
+            } else {
+                clearBtn.classList.add('hidden'); dropdown.classList.add('hidden');
+            }
+        }
+
+        function renderDropdown(results, highlightWords = []) {
+            const d = document.getElementById('searchDropdown');
+            d.innerHTML = results.length ? '' : '<div class="p-4 text-sm text-opac-blue/50 italic">Aucun résultat</div>';
+            results.forEach(row => {
+                const div = document.createElement('div');
+                div.className = "px-4 py-3 border-b border-opac-grey hover:bg-opac-grey/30 cursor-pointer transition-colors";
+                const elementsText = getSafeValue(row, 'Eléments', 'ment') || 'Élément non défini';
+                const descriptifText = getSafeValue(row, 'Descriptif', 'descriptif');
+                const domaine = getSafeValue(row, 'Domaine', 'domaine');
+                const activite = getSafeValue(row, 'Activité', 'activit');
+                const typeDemande = getSafeValue(row, 'Type de demande', 'type');
+                
+                let subInfos = [...new Set([domaine, activite, typeDemande].filter(t => t && t.trim() !== ''))]; 
+                const subTitle = subInfos.join(' • ');
+                
+                let mainTitleHTML = `<span class="font-extrabold text-opac-blue">${highlightTerms(elementsText, highlightWords)}</span>`;
+                if (descriptifText && descriptifText.toLowerCase() !== elementsText.toLowerCase()) {
+                    mainTitleHTML += `<span class="text-opac-blue/70 font-medium italic block mt-1">${highlightTerms(descriptifText, highlightWords)}</span>`;
+                }
+                div.innerHTML = `<div class="text-sm leading-relaxed">${mainTitleHTML}</div><div class="text-xs text-opac-orange mt-1 font-bold">${highlightTerms(subTitle, highlightWords)}</div>`;
+                div.onclick = () => { displayItem(row); d.classList.add('hidden'); };
+                d.appendChild(div);
+            });
+            d.classList.remove('hidden');
+        }
+
+        function clearSearch() { document.getElementById('searchInput').value = ''; handleSearch(); }
+
+        function resetToHome() {
+            document.getElementById('searchInput').value = '';
+            handleSearch(); 
+            document.getElementById('detailView').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('suiviPanel').classList.add('opacity-50', 'pointer-events-none');
+            
+            document.getElementById('tableView').classList.add('hidden');
+            document.getElementById('pdfReaderView').classList.add('hidden');
+            
+            document.getElementById('mainDashboard').classList.remove('hidden');
+            
+            if (isSidebarOpen) toggleSidebar();
+            if (typeof forceStopAIListen === 'function') forceStopAIListen();
+        }
+
+        function displayItem(row) {
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('detailView').classList.remove('hidden');
+            document.getElementById('suiviPanel').classList.remove('opacity-50', 'pointer-events-none');
+
+            document.getElementById('data-id').textContent = (getSafeValue(row, 'N° Dessin', 'dessin') || 'REF-X');
+            document.getElementById('data-main-title').textContent = getSafeValue(row, 'Activité', 'activit') || 'Détail';
+            
+            const descriptifText = getSafeValue(row, 'Descriptif', 'descriptif');
+            const elementsText = getSafeValue(row, 'Eléments', 'ment');
+            document.getElementById('data-elements').textContent = descriptifText ? descriptifText : (elementsText || '-');
+            
+            document.getElementById('data-demande').textContent = getSafeValue(row, 'Demande', 'demande') || '-';
+            document.getElementById('data-type').textContent = getSafeValue(row, 'Type de demande', 'type') || '-';
+            document.getElementById('data-nature').textContent = getSafeValue(row, 'Domaine', 'domaine') || '-';
+            document.getElementById('data-destinataire').textContent = getSafeValue(row, 'Destinataire', 'destinataire') || '-';
+            
+            const contactText = getSafeValue(row, 'Contact', 'contact') || '-';
+            const contactEl = document.getElementById('data-contact');
+            if(contactText !== '-') {
+                const safeContactForJS = contactText.replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+                contactEl.innerHTML = `<span onclick="copyToClipboard('${safeContactForJS}', 'Contact copié !')" class="cursor-pointer text-opac-orange hover:text-opac-blue flex items-center gap-1.5 transition-colors group">${escapeHTML(contactText)} <i class="fa-regular fa-copy opacity-0 group-hover:opacity-100"></i></span>`;
+            } else contactEl.textContent = '-';
+            
+            document.getElementById('data-scenario-grc').innerHTML = formatScenarios(getSafeValue(row, 'Scénario GRC', 'grc'));
+            document.getElementById('data-scenario-gardien').innerHTML = formatScenarios(getSafeValue(row, 'Scénario Gardien', 'gardien'));
+
+            const url = getSafeValue(row, 'Lien hypertexte', 'lien');
+            const img = document.getElementById('data-image');
+            img.classList.toggle('hidden', !url);
+            if (url) { img.src = url; document.getElementById('data-image-link').href = url; document.getElementById('data-image-icon').classList.add('hidden'); }
+            else { document.getElementById('data-image-icon').classList.remove('hidden'); }
+
+            const sc = document.getElementById('suiviContent'); sc.innerHTML = '';
+            for(let i=1; i<=3; i++) {
+                const val = getSafeValue(row, `Suivi évènementiel ${i}`, 'suivi', i.toString());
+                const nb = getSafeValue(row, `NB ${i}`, 'nb', i.toString());
+                if (val) sc.innerHTML += `<div class="flex gap-4 items-start"><div class="w-7 h-7 bg-opac-orange/20 text-opac-orange rounded-full flex items-center justify-center text-xs font-extrabold border border-opac-orange/30 shadow-sm">${i}</div><div><p class="font-extrabold text-sm text-opac-blue">${val}</p>${nb ? `<p class="text-xs text-opac-blue/60 mt-1 font-bold">${nb}</p>` : ''}</div></div>`;
+            }
+            addToHistory(row);
+        }
+
+        function addToHistory(row) {
+            const num = getSafeValue(row, 'Numéro', 'num');
+            if (!searchHistory.find(i => getSafeValue(i, 'Numéro', 'num') === num)) {
+                searchHistory.unshift(row); if(searchHistory.length > 5) searchHistory.pop();
+                const hl = document.getElementById('historyList'); hl.innerHTML = '';
+                searchHistory.forEach(r => {
+                    const li = document.createElement('li'); li.className = "p-4 hover:bg-opac-grey/30 cursor-pointer text-sm font-medium flex flex-col gap-1 transition-colors";
+                    const elementsText = getSafeValue(r, 'Eléments', 'ment') || 'Élément non défini';
+                    const descriptifText = getSafeValue(r, 'Descriptif', 'descriptif');
+                    let historyHTML = `<div><i class="fa-solid fa-clock mr-2 text-opac-blue/40"></i><span class="font-extrabold text-opac-blue">${escapeHTML(elementsText)}</span></div>`;
+                    if (descriptifText) historyHTML += `<div class="text-xs text-opac-blue/60 ml-6 italic truncate">${escapeHTML(descriptifText)}</div>`;
+                    li.innerHTML = historyHTML;
+                    li.onclick = () => displayItem(r); hl.appendChild(li);
+                });
+            }
+        }
+
+        function toggleTableView() {
+            document.getElementById('mainDashboard').classList.add('hidden');
+            document.getElementById('pdfReaderView').classList.add('hidden');
+            const v = document.getElementById('tableView'); 
+            v.classList.remove('hidden');
+            if (!v.classList.contains('hidden')) {
+                renderEditableTable();
+                if (document.getElementById('findInput')) document.getElementById('findInput').value = '';
+                if (document.getElementById('replaceInput')) document.getElementById('replaceInput').value = '';
+                updateFindMatches(true);
+            }
+        }
+
+        let searchMatches = [];
+        let currentSearchMatchIndex = -1;
+
+        function createRegex(query, wholeWord) {
+            if (!query) return null;
+            const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (wholeWord) return new RegExp(`(^|[^a-zA-ZÀ-ÿ0-9_])(${escaped})(?=[^a-zA-ZÀ-ÿ0-9_]|$)`, 'gi');
+            return new RegExp(escaped, 'gi');
+        }
+
+        function updateFindMatches(resetIndex = false) {
+            document.querySelectorAll('.find-match').forEach(el => el.classList.remove('find-match', 'bg-yellow-200', 'text-black', 'find-active', 'bg-opac-orange', 'text-white', 'ring-2', 'ring-opac-blue'));
+            searchMatches = [];
+            const query = document.getElementById('findInput').value;
+            if (!query) { document.getElementById('findCount').innerText = "0/0"; return; }
+            const wholeWord = document.getElementById('wholeWordCheck').checked;
+            const regex = createRegex(query, wholeWord);
+            document.querySelectorAll('#tableContent tbody [contenteditable="true"]').forEach(cell => {
+                if (cell.innerText.match(regex)) { searchMatches.push(cell); cell.classList.add('find-match', 'bg-yellow-200', 'text-black'); }
+            });
+            if (resetIndex || currentSearchMatchIndex >= searchMatches.length) currentSearchMatchIndex = searchMatches.length > 0 ? 0 : -1;
+            updateFindHighlight();
+        }
+
+        function updateFindHighlight() {
+            document.querySelectorAll('.find-active').forEach(el => { el.classList.remove('find-active', 'bg-opac-orange', 'text-white', 'ring-2', 'ring-opac-blue'); el.classList.add('bg-yellow-200', 'text-black'); });
+            if (searchMatches.length > 0 && currentSearchMatchIndex >= 0) {
+                const activeCell = searchMatches[currentSearchMatchIndex];
+                activeCell.classList.remove('bg-yellow-200', 'text-black');
+                activeCell.classList.add('find-active', 'bg-opac-orange', 'text-white', 'ring-2', 'ring-opac-blue');
+                activeCell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                document.getElementById('findCount').innerText = `${currentSearchMatchIndex + 1}/${searchMatches.length}`;
+            } else document.getElementById('findCount').innerText = "0/0";
+        }
+
+        function findNext(reset = false) { if (reset) updateFindMatches(true); else if (searchMatches.length > 0) { currentSearchMatchIndex = (currentSearchMatchIndex + 1) % searchMatches.length; updateFindHighlight(); } }
+        function findPrev() { if (searchMatches.length > 0) { currentSearchMatchIndex = (currentSearchMatchIndex - 1 + searchMatches.length) % searchMatches.length; updateFindHighlight(); } }
+
+        function replaceCurrent() {
+            if (searchMatches.length === 0 || currentSearchMatchIndex < 0) return;
+            const activeCell = searchMatches[currentSearchMatchIndex];
+            const targetStr = document.getElementById('findInput').value;
+            const replaceStr = document.getElementById('replaceInput').value;
+            const wholeWord = document.getElementById('wholeWordCheck').checked;
+            if (!targetStr) return;
+            const regex = createRegex(targetStr, wholeWord);
+            if (wholeWord) activeCell.innerText = activeCell.innerText.replace(regex, `$1${replaceStr}`).replace(regex, `$1${replaceStr}`);
+            else activeCell.innerText = activeCell.innerText.replace(regex, replaceStr);
+            updateFindMatches(); 
+        }
+
+        function replaceAll() {
+            if (searchMatches.length === 0) return;
+            const targetStr = document.getElementById('findInput').value;
+            const replaceStr = document.getElementById('replaceInput').value;
+            const wholeWord = document.getElementById('wholeWordCheck').checked;
+            if (!targetStr) return;
+            const regex = createRegex(targetStr, wholeWord);
+            let count = 0;
+            searchMatches.forEach(cell => {
+                const oldText = cell.innerText; let newText = oldText;
+                if (wholeWord) newText = newText.replace(regex, `$1${replaceStr}`).replace(regex, `$1${replaceStr}`);
+                else newText = newText.replace(regex, replaceStr);
+                if (oldText !== newText) { cell.innerText = newText; count++; }
+            });
+            showToast(`${count} cellules modifiées`, "success"); updateFindMatches(true);
+        }
+
+        function renderEditableTable() {
+            const headers = originalHeaders.filter(h => h.trim() && h !== 'Vérif erreur');
+            let htm = `<table class="min-w-max w-full text-xs text-left border-collapse"><thead><tr class="sticky top-0 bg-opac-blue backdrop-blur-md z-20 shadow-md">`;
+            htm += `<th class="p-3 border border-opac-blue/50 w-10 text-center text-opac-white">X</th>` + headers.map(h => `<th class="p-3 border border-opac-blue/50 text-opac-white font-bold tracking-wider">${escapeHTML(h)}</th>`).join('') + `</tr></thead><tbody>`;
+            allData.forEach((row, idx) => {
+                htm += `<tr class="hover:bg-opac-grey/50 transition-colors border-b border-opac-grey"><td class="p-3 border-r border-opac-grey text-center"><button onclick="this.closest('tr').remove()" class="text-rose-500 hover:text-rose-700 transition-colors"><i class="fa-solid fa-trash"></i></button></td>`;
+                headers.forEach(h => htm += `<td class="p-3 border-r border-opac-grey"><div contenteditable="true" data-h="${h}" class="text-opac-black font-medium">${escapeHTML(row[h])}</div></td>`);
+                htm += `</tr>`;
+            });
+            document.getElementById('tableContent').innerHTML = htm + `</tbody></table>`;
+        }
+
+        function addRow() {
+            const tr = document.createElement('tr');
+            const headers = originalHeaders.filter(h => h.trim() && h !== 'Vérif erreur');
+            tr.innerHTML = `<td class="p-3 border-r border-opac-grey text-center border-b"><button onclick="this.closest('tr').remove()" class="text-rose-500 hover:text-rose-700 transition-colors"><i class="fa-solid fa-trash"></i></button></td>` + headers.map(h => `<td class="p-3 border-r border-opac-grey border-b"><div contenteditable="true" data-h="${h}" class="text-opac-black font-medium"></div></td>`).join('');
+            document.querySelector('#tableContent tbody').appendChild(tr);
+        }
+
+        function saveTableChanges() {
+            const rows = document.querySelectorAll('#tableContent tbody tr');
+            allData = Array.from(rows).map(tr => {
+                const r = {}; tr.querySelectorAll('[contenteditable]').forEach(div => r[div.dataset.h] = div.innerText.trim());
+                return r;
+            });
+            saveToMemory(); toggleTableView(); clearSearch();
+        }
+
+        function downloadCSV() {
+            const csv = Papa.unparse(allData, { delimiter: ";" });
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Base_DiagOPH.csv"; a.click();
+        }
+    </script>
+</body>
+</html>
