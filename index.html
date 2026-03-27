@@ -839,14 +839,18 @@
                             Pour contourner les blocages des hébergeurs et éviter le lecteur interne de Google Chrome, l'affichage intégré a été désactivé. <br><br>
                             Veuillez choisir votre méthode de lecture sécurisée :
                         </p>
-                        <div class="flex flex-col sm:flex-row gap-4 mt-6 w-full max-w-md">
-                            <a href="${url}" download="${titles[key] || 'document'}.pdf" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                        <div class="flex flex-col md:flex-row gap-3 mt-6 w-full max-w-3xl">
+                            <a href="${url}" download="${titles[key] || 'document'}.pdf" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-4 rounded-xl font-black text-xs shadow-xl transition-all flex flex-col items-center gap-2 group">
                                 <i class="fa-solid fa-desktop text-2xl group-hover:scale-110 transition-transform"></i>
-                                Application PC (Acrobat)
+                                Télécharger (Pour PC)
                             </a>
-                            <a href="https://acrobat.adobe.com/" target="_blank" class="flex-1 bg-opac-blue hover:bg-opac-orange text-white hover:text-opac-black px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                            <a href="${url}" target="_blank" class="flex-1 bg-opac-orange hover:bg-opac-white text-opac-black px-4 py-4 rounded-xl font-black text-xs shadow-xl transition-all flex flex-col items-center gap-2 group border border-opac-orange">
+                                <i class="fa-brands fa-chrome text-2xl group-hover:scale-110 transition-transform"></i>
+                                Extension Chrome
+                            </a>
+                            <a href="https://acrobat.adobe.com/" target="_blank" class="flex-1 bg-opac-blue hover:bg-opac-orange text-white hover:text-opac-black px-4 py-4 rounded-xl font-black text-xs shadow-xl transition-all flex flex-col items-center gap-2 group">
                                 <i class="fa-solid fa-cloud text-2xl group-hover:scale-110 transition-transform"></i>
-                                Acrobat Web (En ligne)
+                                Acrobat Web
                             </a>
                         </div>
                         <p class="text-[10px] text-opac-blue/40 font-bold uppercase tracking-widest mt-8 break-all max-w-xl">Lien source : ${escapeHTML(url)}</p>
@@ -886,14 +890,18 @@
                         Fichier local détecté. Pour éviter les restrictions du navigateur Chrome, l'affichage intégré a été désactivé. <br><br>
                         Veuillez choisir votre méthode de lecture :
                     </p>
-                    <div class="flex flex-col sm:flex-row gap-4 mt-6 w-full max-w-md">
-                        <a href="${fileUrl}" download="${escapeHTML(file.name)}" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                    <div class="flex flex-col md:flex-row gap-3 mt-6 w-full max-w-3xl">
+                        <a href="${fileUrl}" download="${escapeHTML(file.name)}" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-4 rounded-xl font-black text-xs shadow-xl transition-all flex flex-col items-center gap-2 group">
                             <i class="fa-solid fa-desktop text-2xl group-hover:scale-110 transition-transform"></i>
-                            Application PC (Acrobat)
+                            Télécharger (Pour PC)
                         </a>
-                        <a href="https://acrobat.adobe.com/" target="_blank" class="flex-1 bg-opac-blue hover:bg-opac-orange text-white hover:text-opac-black px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                        <a href="${fileUrl}" target="_blank" class="flex-1 bg-opac-orange hover:bg-opac-white text-opac-black px-4 py-4 rounded-xl font-black text-xs shadow-xl transition-all flex flex-col items-center gap-2 group border border-opac-orange">
+                            <i class="fa-brands fa-chrome text-2xl group-hover:scale-110 transition-transform"></i>
+                            Extension Chrome
+                        </a>
+                        <a href="https://acrobat.adobe.com/" target="_blank" class="flex-1 bg-opac-blue hover:bg-opac-orange text-white hover:text-opac-black px-4 py-4 rounded-xl font-black text-xs shadow-xl transition-all flex flex-col items-center gap-2 group">
                             <i class="fa-solid fa-cloud text-2xl group-hover:scale-110 transition-transform"></i>
-                            Acrobat Web (En ligne)
+                            Acrobat Web
                         </a>
                     </div>
                     <p class="text-[10px] text-opac-blue/40 font-bold uppercase tracking-widest mt-8">Fichier : ${escapeHTML(file.name)}</p>
