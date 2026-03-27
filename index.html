@@ -708,23 +708,15 @@
         <div id="pdfReaderView" class="hidden w-full glass-panel-dark rounded-2xl shadow-2xl flex flex-col h-[85vh] overflow-hidden relative z-10 border border-opac-orange/50">
             <div class="bg-opac-black/60 text-opac-white px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-opac-orange/50 shrink-0 backdrop-blur-md">
                 <div class="flex items-center gap-3">
-                    <div class="bg-opac-orange text-opac-black p-2 rounded-lg shadow-md">
-                        <i class="fa-solid fa-file-pdf text-xl"></i>
+                    <div class="bg-red-600 text-white p-2 rounded-lg shadow-md">
+                        <i class="fa-brands fa-adobe text-xl"></i>
                     </div>
                     <div>
-                        <h2 id="pdfViewerTitle" class="text-xl font-extrabold tracking-wide text-opac-white">Visionneuse PDF</h2>
-                        <p class="text-xs text-opac-white/60 font-medium">Recherche visuelle (Ctrl+F) et mise en page préservée</p>
+                        <h2 id="pdfViewerTitle" class="text-xl font-extrabold tracking-wide text-opac-white">Portail Adobe Acrobat</h2>
+                        <p class="text-xs text-opac-white/60 font-medium">Contournement des restrictions Chrome et Hébergeurs</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 flex-wrap justify-end">
-                    <!-- NOUVEAU BOUTON : Forcer l'ouverture externe -->
-                    <a id="externalPdfLink" href="#" target="_blank" class="hidden bg-opac-white/10 hover:bg-opac-orange hover:text-opac-black text-opac-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-opac-white/20 flex items-center gap-2" title="Ouvrir le lien dans un nouvel onglet Chrome">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Navigateur
-                    </a>
-                    <!-- NOUVEAU BOUTON : Télécharger / Ouvrir sur PC -->
-                    <a id="downloadPdfLink" href="#" download="document.pdf" class="hidden bg-opac-white/10 hover:bg-opac-orange hover:text-opac-black text-opac-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-opac-white/20 flex items-center gap-2" title="Télécharger pour ouvrir avec Acrobat Reader">
-                        <i class="fa-solid fa-desktop"></i> Application PC
-                    </a>
                     <!-- Option secondaire pour charger un fichier manuel si l'URL est cassée -->
                     <label class="cursor-pointer bg-opac-white/10 hover:bg-opac-white/20 text-opac-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all border border-opac-white/20 flex items-center gap-2" title="Ouvrir un PDF depuis votre ordinateur si le lien échoue">
                         <i class="fa-solid fa-folder-open"></i> Dépannage (Fichier local)
@@ -825,43 +817,41 @@
             
             document.getElementById('pdfViewerTitle').innerText = titles[key];
             const container = document.getElementById('pdfEmbedContainer');
-            const externalLinkBtn = document.getElementById('externalPdfLink');
-            const downloadLinkBtn = document.getElementById('downloadPdfLink');
             
             // Si le lien est vide ou non configuré
             if (!url || url.trim() === '') {
-                if(externalLinkBtn) externalLinkBtn.classList.add('hidden');
-                if(downloadLinkBtn) downloadLinkBtn.classList.add('hidden');
                 container.innerHTML = `
-                    <div class="text-center flex flex-col items-center gap-4 bg-opac-black/50 p-8 rounded-2xl border border-rose-500/30">
+                    <div class="text-center flex flex-col items-center gap-4 bg-opac-black/50 p-8 rounded-2xl border border-rose-500/30 w-full max-w-2xl">
                         <i class="fa-solid fa-link-slash text-5xl text-rose-500"></i>
                         <h3 class="text-xl font-bold text-opac-white">Aucun lien configuré pour ce document</h3>
                         <p class="text-sm text-opac-white/70 max-w-md">Passez en <strong>Mode Administrateur</strong> via le menu de gauche, puis cliquez sur l'icône <i class="fa-solid fa-pen mx-1"></i> (Crayon) à côté du document pour définir son adresse (URL).</p>
                     </div>
                 `;
             } else {
-                if(externalLinkBtn) {
-                    externalLinkBtn.href = url;
-                    externalLinkBtn.classList.remove('hidden');
-                }
-                if(downloadLinkBtn) {
-                    downloadLinkBtn.href = url;
-                    downloadLinkBtn.download = (titles[key] || 'document') + ".pdf";
-                    downloadLinkBtn.classList.remove('hidden');
-                }
-                
-                // Injection systématique de l'iframe (Restauration du lecteur intégré)
+                // RUPTURE : Désactivation de l'iframe (Chrome) et passage exclusif sur le Hub Adobe Acrobat
                 container.innerHTML = `
-                    <iframe 
-                        src="${url}#view=FitH" 
-                        class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
-                        title="${titles[key]}"
-                    ></iframe>
+                    <div class="w-full h-full flex flex-col items-center justify-center gap-6 bg-opac-white rounded-xl shadow-inner border border-opac-grey p-8 text-center overflow-auto">
+                        <div class="bg-red-50 p-6 rounded-full border-4 border-red-100 mb-2 shadow-sm">
+                            <i class="fa-brands fa-adobe text-7xl text-red-600"></i>
+                        </div>
+                        <h3 class="text-3xl font-black text-opac-blue uppercase tracking-tight">Ouverture via Acrobat</h3>
+                        <p class="text-sm font-semibold text-opac-blue/70 max-w-lg leading-relaxed">
+                            Pour contourner les blocages des hébergeurs et éviter le lecteur interne de Google Chrome, l'affichage intégré a été désactivé. <br><br>
+                            Veuillez choisir votre méthode de lecture sécurisée :
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-4 mt-6 w-full max-w-md">
+                            <a href="${url}" download="${titles[key] || 'document'}.pdf" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                                <i class="fa-solid fa-desktop text-2xl group-hover:scale-110 transition-transform"></i>
+                                Application PC (Acrobat)
+                            </a>
+                            <a href="https://acrobat.adobe.com/" target="_blank" class="flex-1 bg-opac-blue hover:bg-opac-orange text-white hover:text-opac-black px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                                <i class="fa-solid fa-cloud text-2xl group-hover:scale-110 transition-transform"></i>
+                                Acrobat Web (En ligne)
+                            </a>
+                        </div>
+                        <p class="text-[10px] text-opac-blue/40 font-bold uppercase tracking-widest mt-8 break-all max-w-xl">Lien source : ${escapeHTML(url)}</p>
+                    </div>
                 `;
-                
-                if (window.location.protocol === 'file:' && url.startsWith('blob:')) {
-                    showToast("Mode local : Si l'écran est gris, utilisez le bouton Navigateur en haut à droite.", "error");
-                }
             }
             
             // Bascule des vues
@@ -881,37 +871,36 @@
                 return;
             }
 
-            // Création d'une URL mémoire instantanée (Contourne la limite de poids du Base64)
+            // Création d'une URL mémoire instantanée
             const fileUrl = URL.createObjectURL(file);
             const container = document.getElementById('pdfEmbedContainer');
-            const externalLinkBtn = document.getElementById('externalPdfLink');
-            const downloadLinkBtn = document.getElementById('downloadPdfLink');
             
-            if(externalLinkBtn) {
-                externalLinkBtn.href = fileUrl;
-                externalLinkBtn.classList.remove('hidden');
-            }
-            if(downloadLinkBtn) {
-                downloadLinkBtn.href = fileUrl;
-                downloadLinkBtn.download = file.name;
-                downloadLinkBtn.classList.remove('hidden');
-            }
-            
-            // Injection systématique de l'iframe (Restauration du lecteur intégré)
+            // RUPTURE : Désactivation de l'iframe (Chrome) et passage exclusif sur le Hub Adobe Acrobat
             container.innerHTML = `
-                <iframe 
-                    src="${fileUrl}#view=FitH" 
-                    class="absolute inset-0 w-full h-full border-none bg-white rounded-xl shadow-inner"
-                    title="${escapeHTML(file.name)}"
-                ></iframe>
+                <div class="w-full h-full flex flex-col items-center justify-center gap-6 bg-opac-white rounded-xl shadow-inner border border-opac-grey p-8 text-center overflow-auto">
+                    <div class="bg-red-50 p-6 rounded-full border-4 border-red-100 mb-2 shadow-sm">
+                        <i class="fa-brands fa-adobe text-7xl text-red-600"></i>
+                    </div>
+                    <h3 class="text-3xl font-black text-opac-blue uppercase tracking-tight">Ouverture via Acrobat</h3>
+                    <p class="text-sm font-semibold text-opac-blue/70 max-w-lg leading-relaxed">
+                        Fichier local détecté. Pour éviter les restrictions du navigateur Chrome, l'affichage intégré a été désactivé. <br><br>
+                        Veuillez choisir votre méthode de lecture :
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4 mt-6 w-full max-w-md">
+                        <a href="${fileUrl}" download="${escapeHTML(file.name)}" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                            <i class="fa-solid fa-desktop text-2xl group-hover:scale-110 transition-transform"></i>
+                            Application PC (Acrobat)
+                        </a>
+                        <a href="https://acrobat.adobe.com/" target="_blank" class="flex-1 bg-opac-blue hover:bg-opac-orange text-white hover:text-opac-black px-6 py-4 rounded-xl font-black text-sm shadow-xl transition-all flex flex-col items-center gap-2 group">
+                            <i class="fa-solid fa-cloud text-2xl group-hover:scale-110 transition-transform"></i>
+                            Acrobat Web (En ligne)
+                        </a>
+                    </div>
+                    <p class="text-[10px] text-opac-blue/40 font-bold uppercase tracking-widest mt-8">Fichier : ${escapeHTML(file.name)}</p>
+                </div>
             `;
             
-            showToast("Document local chargé. Utilisez le lecteur intégré.", "success");
-            
-            if (window.location.protocol === 'file:') {
-                showToast("Note: Chrome peut griser le PDF en mode hors-ligne.", "error");
-            }
-            
+            showToast("Document prêt pour Adobe Acrobat.", "success");
             event.target.value = ''; // Réinitialisation de l'input
         }
 
